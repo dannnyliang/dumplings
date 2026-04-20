@@ -12,12 +12,19 @@ export default async function Home() {
     redirect('/login')
   }
 
-  const { data: transactions } = await supabase
-    .from('transactions')
-    .select('*, category:categories(id, name)')
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(50)
+  const [{ data: transactions }, { data: profilesData }] = await Promise.all([
+    supabase
+      .from('transactions')
+      .select('*, category:categories(id, name)')
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(100),
+    supabase.from('profiles').select('id, display_name'),
+  ])
+
+  const profiles: Record<string, string> = Object.fromEntries(
+    (profilesData ?? []).map((p) => [p.id, p.display_name])
+  )
 
   return (
     <main className="min-h-screen bg-gray-50 pb-28">
@@ -34,11 +41,11 @@ export default async function Home() {
       </header>
 
       <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
-        <BalanceSummary transactions={transactions ?? []} />
-        <TransactionList transactions={transactions ?? []} />
+        <BalanceSummary transactions={transactions ?? []} profiles={profiles} />
+        <TransactionList transactions={transactions ?? []} userId={user.id} profiles={profiles} />
       </div>
 
-      <AddTransactionButton />
+      <AddTransactionButton userId={user.id} />
     </main>
   )
 }
