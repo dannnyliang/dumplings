@@ -142,4 +142,42 @@ describe('TransactionFormModal', () => {
       expect(await screen.findByText('請輸入有效金額')).toBeInTheDocument()
     })
   })
+
+  describe('新增模式送出', () => {
+    it('填入有效金額送出後呼叫 onClose', async () => {
+      const { container } = render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
+      const amountInput = screen.getByPlaceholderText('0') as HTMLInputElement
+      fireEvent.change(amountInput, { target: { value: '300' } })
+      fireEvent.submit(container.querySelector('form')!)
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+    })
+  })
+
+  describe('編輯模式送出', () => {
+    it('填入有效金額儲存後呼叫 onClose', async () => {
+      const { container } = render(
+        <TransactionFormModal userId="uid-danny" transaction={BASE_TRANSACTION} onClose={onClose} />
+      )
+      fireEvent.submit(container.querySelector('form')!)
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+    })
+  })
+
+  describe('刪除操作', () => {
+    it('確認刪除後呼叫 onClose', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true)
+      const user = userEvent.setup()
+      render(<TransactionFormModal userId="uid-danny" transaction={BASE_TRANSACTION} onClose={onClose} />)
+      await user.click(screen.getByText('刪除這筆記錄'))
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+    })
+
+    it('取消刪除不呼叫 onClose', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const user = userEvent.setup()
+      render(<TransactionFormModal userId="uid-danny" transaction={BASE_TRANSACTION} onClose={onClose} />)
+      await user.click(screen.getByText('刪除這筆記錄'))
+      expect(onClose).not.toHaveBeenCalled()
+    })
+  })
 })
