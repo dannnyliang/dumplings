@@ -39,3 +39,20 @@ export interface NewTransaction {
   note: string | null
   paid_by: string
 }
+
+export type RecurringFrequency = 'monthly' | 'weekly'
+
+export interface RecurringTransaction {
+  id: string
+  amount: number
+  type: TransactionType
+  category_id: string | null
+  note: string | null
+  paid_by: string
+  frequency: RecurringFrequency
+  day_of_month: number | null
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+  category?: Category
+}
