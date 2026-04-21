@@ -123,7 +123,7 @@ export default function ReportView({ transactions, selectedMonth }: ReportViewPr
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) => [`NT$ ${value.toLocaleString('zh-TW')}`, '金額']}
+                  formatter={(value) => [`NT$ ${Number(value).toLocaleString('zh-TW')}`, '金額']}
                 />
                 <Legend
                   formatter={(value) => <span className="text-xs text-gray-600">{value}</span>}
