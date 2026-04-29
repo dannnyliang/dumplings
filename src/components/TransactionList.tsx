@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import TransactionFormModal from './TransactionFormModal'
+import CategoryAvatar from '@/components/ui/CategoryAvatar'
 import type { Transaction } from '@/types/database'
 
 interface TransactionListProps {
@@ -34,9 +35,9 @@ export default function TransactionList({ transactions, userId, profiles }: Tran
 
   if (transactions.length === 0) {
     return (
-      <div className="bg-white rounded-2xl p-8 shadow-sm text-center text-gray-400">
-        <p className="text-4xl mb-2">🥟</p>
-        <p className="text-sm">還沒有記錄，開始記帳吧！</p>
+      <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 24, padding: '32px 16px', textAlign: 'center', boxShadow: 'var(--dmp-shadow-soft)' }}>
+        <p style={{ fontSize: 36, marginBottom: 8 }}>🥟</p>
+        <p style={{ fontSize: 13, color: 'var(--dmp-text-muted)' }}>還沒有記錄，開始記帳吧！</p>
       </div>
     )
   }
@@ -48,14 +49,16 @@ export default function TransactionList({ transactions, userId, profiles }: Tran
 
   return (
     <>
-      <div className="space-y-4">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {Object.entries(grouped).map(([date, items]) => (
-          <div key={date} className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-              <span className="text-xs font-medium text-gray-500">{formatDate(date)}</span>
+          <div key={date} style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 24, overflow: 'hidden', boxShadow: 'var(--dmp-shadow-soft)' }}>
+            <div style={{ padding: '8px 16px', backgroundColor: 'var(--dmp-surface-alt)', borderBottom: '1px solid var(--dmp-border)' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--dmp-text-muted)', fontFamily: '"SF Mono", ui-monospace, monospace', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                {formatDate(date)}
+              </span>
             </div>
-            <ul className="divide-y divide-gray-50">
-              {items.map((t) => {
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              {items.map((t, idx) => {
                 const isAdvance = t.type === 'expense' && t.paid_by !== 'shared'
                 const payerName = isAdvance ? (profiles[t.paid_by] ?? '某人') : ''
 
@@ -63,33 +66,43 @@ export default function TransactionList({ transactions, userId, profiles }: Tran
                   <li
                     key={t.id}
                     onClick={() => setEditingTransaction(t)}
-                    className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      borderTop: idx > 0 ? '1px solid var(--dmp-border)' : 'none',
+                    }}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">{t.type === 'topup' ? '💰' : '💸'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <CategoryAvatar
+                        categoryName={t.type === 'topup' ? null : (t.category?.name ?? null)}
+                        size={40}
+                      />
                       <div>
-                        <p className="text-sm font-medium text-gray-800">
+                        <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--dmp-text)', margin: 0 }}>
                           {t.category?.name ?? (t.type === 'topup' ? '入帳' : '支出')}
                         </p>
                         {t.note && (
-                          <p className="text-xs text-gray-400">{t.note}</p>
+                          <p style={{ fontSize: 12, color: 'var(--dmp-text-muted)', margin: '2px 0 0' }}>{t.note}</p>
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`text-sm font-semibold ${t.type === 'topup' ? 'text-green-600' : 'text-gray-800'}`}>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: t.type === 'topup' ? 'var(--dmp-income)' : 'var(--dmp-expense)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
                         {t.type === 'topup' ? '+' : '-'}NT$ {Number(t.amount).toLocaleString('zh-TW')}
                       </p>
                       {isAdvance && (
-                        <div className="flex items-center justify-end gap-1 mt-0.5">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 2 }}>
                           {t.is_reimbursed ? (
-                            <span className="text-xs text-gray-400">✓ {payerName} 已還清</span>
+                            <span style={{ fontSize: 11, color: 'var(--dmp-text-muted)' }}>✓ {payerName} 已還清</span>
                           ) : (
                             <>
-                              <span className="text-xs text-orange-500">{payerName} 墊付</span>
+                              <span style={{ fontSize: 11, color: 'var(--dmp-accent)' }}>{payerName} 墊付</span>
                               <button
                                 onClick={(e) => { e.stopPropagation(); markReimbursed(t) }}
-                                className="text-xs text-indigo-400 hover:text-indigo-600 underline ml-1"
+                                style={{ fontSize: 11, color: 'var(--dmp-accent)', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                               >
                                 還清
                               </button>

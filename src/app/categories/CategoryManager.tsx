@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import CategoryAvatar from '@/components/ui/CategoryAvatar'
+import Toggle from '@/components/ui/Toggle'
+import Icon from '@/components/ui/Icon'
 import type { Category } from '@/types/database'
 
 interface CategoryManagerProps {
@@ -82,79 +85,114 @@ export default function CategoryManager({ initialCategories }: CategoryManagerPr
     setCategories((prev) => prev.filter((c) => c.id !== category.id))
   }
 
+  const allCategories = [...activeCategories, ...inactiveCategories]
+
   return (
-    <main className="min-h-screen bg-gray-50 pb-28">
-      <header className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
-        <Link href="/" className="text-gray-400 hover:text-gray-600 text-lg leading-none">←</Link>
-        <h1 className="text-lg font-bold text-gray-800">分類管理</h1>
+    <main style={{ minHeight: '100dvh', backgroundColor: 'var(--dmp-bg)', paddingBottom: 100 }}>
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        backgroundColor: 'var(--dmp-bg)',
+        borderBottom: '1px solid var(--dmp-border)',
+        padding: '12px 20px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link href="/" style={{ color: 'var(--dmp-text-muted)', display: 'flex' }}>
+            <Icon name="back" size={22} />
+          </Link>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--dmp-text)', margin: 0 }}>分類</h1>
+        </div>
+        <button
+          onClick={() => document.getElementById('new-cat-input')?.focus()}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14, fontWeight: 500, color: 'var(--dmp-accent)', background: 'none', border: 'none', cursor: 'pointer' }}
+        >
+          <Icon name="plus" size={18} strokeWidth={2} />
+          新增
+        </button>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
-        <form onSubmit={handleAdd} className="bg-white rounded-2xl p-4 shadow-sm flex gap-2">
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8 }}>
           <input
+            id="new-cat-input"
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="新分類名稱..."
-            className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none"
+            style={{
+              flex: 1,
+              border: '1px solid var(--dmp-border-strong)',
+              borderRadius: 14,
+              padding: '10px 14px',
+              fontSize: 14,
+              color: 'var(--dmp-text)',
+              backgroundColor: 'var(--dmp-surface)',
+              outline: 'none',
+            }}
           />
           <button
             type="submit"
             disabled={adding || !newName.trim()}
-            className="bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50 transition"
+            style={{
+              backgroundColor: 'var(--dmp-accent)',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: 14,
+              padding: '10px 18px',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: adding || !newName.trim() ? 'not-allowed' : 'pointer',
+              opacity: adding || !newName.trim() ? 0.5 : 1,
+            }}
           >
             新增
           </button>
         </form>
 
-        {error && <p className="text-xs text-red-500 px-1">{error}</p>}
+        {error && <p style={{ fontSize: 12, color: '#B83B3B' }}>{error}</p>}
 
-        {activeCategories.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-              <span className="text-xs font-medium text-gray-500">使用中</span>
+        {allCategories.length > 0 && (
+          <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, overflow: 'hidden', boxShadow: 'var(--dmp-shadow-soft)' }}>
+            <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--dmp-border)' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--dmp-text-muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                全部分類 · {allCategories.length}
+              </span>
             </div>
-            <ul className="divide-y divide-gray-50">
-              {activeCategories.map((c) => (
-                <li key={c.id} className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm text-gray-800">{c.name}</span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => toggleActive(c)}
-                      className="text-xs text-orange-500 hover:text-orange-700 px-2 py-1 rounded-lg hover:bg-orange-50 transition"
-                    >
-                      停用
-                    </button>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              {allCategories.map((c, idx) => (
+                <li
+                  key={c.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    borderTop: idx > 0 ? '1px solid var(--dmp-border)' : 'none',
+                    opacity: c.is_active ? 1 : 0.55,
+                    backgroundColor: c.is_active ? 'transparent' : 'var(--dmp-surface-alt)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <CategoryAvatar categoryName={c.name} size={36} />
+                    <span style={{ fontSize: 14, fontWeight: 500, color: c.is_active ? 'var(--dmp-text)' : 'var(--dmp-text-muted)' }}>
+                      {c.name}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     {c.created_by && (
                       <button
                         onClick={() => deleteCategory(c)}
-                        className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-50 transition"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dmp-text-muted)', display: 'flex', padding: 4 }}
+                        aria-label="刪除"
                       >
-                        刪除
+                        <Icon name="trash" size={16} />
                       </button>
                     )}
+                    <Toggle
+                      checked={c.is_active}
+                      onChange={() => toggleActive(c)}
+                    />
                   </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {inactiveCategories.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-              <span className="text-xs font-medium text-gray-500">已停用</span>
-            </div>
-            <ul className="divide-y divide-gray-50">
-              {inactiveCategories.map((c) => (
-                <li key={c.id} className="flex items-center justify-between px-4 py-3 opacity-50">
-                  <span className="text-sm text-gray-600">{c.name}</span>
-                  <button
-                    onClick={() => toggleActive(c)}
-                    className="text-xs text-indigo-500 hover:text-indigo-700 px-2 py-1 rounded-lg hover:bg-indigo-50 transition"
-                  >
-                    啟用
-                  </button>
                 </li>
               ))}
             </ul>

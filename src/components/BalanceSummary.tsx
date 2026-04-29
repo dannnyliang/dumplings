@@ -5,6 +5,33 @@ interface BalanceSummaryProps {
   profiles: Record<string, string>
 }
 
+interface StatPillProps {
+  label: string
+  amount: number
+  color: string
+  softBg: string
+  prefix: string
+}
+
+function StatPill({ label, amount, color, softBg, prefix }: StatPillProps) {
+  return (
+    <div style={{
+      flex: 1,
+      backgroundColor: softBg,
+      borderRadius: 14,
+      padding: '10px 14px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2,
+    }}>
+      <span style={{ fontSize: 11, color: 'var(--dmp-text-muted)', fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: 15, fontWeight: 700, color, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
+        {prefix}NT$ {amount.toLocaleString('zh-TW')}
+      </span>
+    </div>
+  )
+}
+
 export default function BalanceSummary({ transactions, profiles }: BalanceSummaryProps) {
   const topupTotal = transactions
     .filter((t) => t.type === 'topup')
@@ -24,20 +51,52 @@ export default function BalanceSummary({ transactions, profiles }: BalanceSummar
     }, {})
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm">
-      <p className="text-sm text-gray-500 mb-1">共同帳戶餘額</p>
-      <p className={`text-3xl font-bold ${balance >= 0 ? 'text-gray-800' : 'text-red-500'}`}>
-        NT$ {balance.toLocaleString('zh-TW')}
-      </p>
-      <div className="flex gap-4 mt-3 text-sm text-gray-500">
-        <span>入帳 <span className="text-green-600 font-medium">+{topupTotal.toLocaleString('zh-TW')}</span></span>
-        <span>支出 <span className="text-red-500 font-medium">-{sharedExpenseTotal.toLocaleString('zh-TW')}</span></span>
+    <div style={{
+      backgroundColor: 'var(--dmp-surface)',
+      borderRadius: 32,
+      padding: 22,
+      boxShadow: 'var(--dmp-shadow-card)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16,
+    }}>
+      <div>
+        <p style={{ fontSize: 11, color: 'var(--dmp-text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>
+          共同帳戶餘額
+        </p>
+        <p style={{
+          fontSize: 40,
+          fontWeight: 700,
+          color: balance >= 0 ? 'var(--dmp-text)' : 'var(--dmp-expense-b)',
+          fontFamily: '"SF Mono", ui-monospace, monospace',
+          letterSpacing: -0.5,
+          lineHeight: 1,
+        }}>
+          NT$ {balance.toLocaleString('zh-TW')}
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <StatPill
+          label="本月支出"
+          amount={sharedExpenseTotal}
+          color="var(--dmp-expense-b)"
+          softBg="var(--dmp-accent-soft)"
+          prefix="-"
+        />
+        <StatPill
+          label="本月入帳"
+          amount={topupTotal}
+          color="var(--dmp-income)"
+          softBg="var(--dmp-income-soft)"
+          prefix="+"
+        />
       </div>
 
       {Object.entries(advancesByPayer).length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
+        <div style={{ borderTop: '1px solid var(--dmp-border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
           {Object.entries(advancesByPayer).map(([payerId, total]) => (
-            <p key={payerId} className="text-xs text-orange-500">
+            <p key={payerId} style={{ fontSize: 12, color: 'var(--dmp-accent)', fontWeight: 500 }}>
               {profiles[payerId] ?? '某人'} 墊付了 NT$ {total.toLocaleString('zh-TW')}，尚未還清
             </p>
           ))}

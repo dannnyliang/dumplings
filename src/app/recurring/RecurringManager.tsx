@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import CategoryAvatar from '@/components/ui/CategoryAvatar'
+import Icon from '@/components/ui/Icon'
 import type { Category, RecurringTransaction } from '@/types/database'
 
 interface RecurringManagerProps {
@@ -103,133 +105,178 @@ export default function RecurringManager({ initialRecurring, categories, userId 
     setRecurring((prev) => prev.filter((r) => r.id !== item.id))
   }
 
+  const monthlyTotal = recurring
+    .filter((r) => r.frequency === 'monthly' && r.type === 'expense')
+    .reduce((sum, r) => sum + Number(r.amount), 0)
+
+  const S = {
+    input: {
+      border: '1px solid var(--dmp-border-strong)',
+      borderRadius: 14,
+      padding: '10px 14px',
+      fontSize: 14,
+      color: 'var(--dmp-text)',
+      backgroundColor: 'var(--dmp-surface)',
+      outline: 'none',
+      width: '100%',
+      boxSizing: 'border-box' as const,
+    },
+    select: {
+      border: '1px solid var(--dmp-border-strong)',
+      borderRadius: 14,
+      padding: '10px 14px',
+      fontSize: 14,
+      color: 'var(--dmp-text)',
+      backgroundColor: 'var(--dmp-surface)',
+      outline: 'none',
+      appearance: 'none' as const,
+      width: '100%',
+    },
+  }
+
   return (
-    <main className="min-h-screen bg-gray-50 pb-28">
-      <header className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="text-gray-400 hover:text-gray-600 text-lg leading-none">←</Link>
-          <h1 className="text-lg font-bold text-gray-800">定期交易</h1>
+    <main style={{ minHeight: '100dvh', backgroundColor: 'var(--dmp-bg)', paddingBottom: 100 }}>
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        backgroundColor: 'var(--dmp-bg)',
+        borderBottom: '1px solid var(--dmp-border)',
+        padding: '12px 20px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link href="/" style={{ color: 'var(--dmp-text-muted)', display: 'flex' }}>
+            <Icon name="back" size={22} />
+          </Link>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--dmp-text)', margin: 0 }}>定期</h1>
         </div>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="text-sm text-indigo-500 hover:text-indigo-700 font-medium"
-        >
-          {showForm ? '取消' : '+ 新增'}
+        <button onClick={() => setShowForm((v) => !v)}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14, fontWeight: 500, color: showForm ? 'var(--dmp-text-muted)' : 'var(--dmp-accent)', background: 'none', border: 'none', cursor: 'pointer' }}>
+          {showForm ? '取消' : <><Icon name="plus" size={18} strokeWidth={2} />新增</>}
         </button>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
-        {error && <p className="text-xs text-red-500 px-1">{error}</p>}
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {error && <p style={{ fontSize: 12, color: '#B83B3B' }}>{error}</p>}
+
+        {monthlyTotal > 0 && (
+          <div style={{ backgroundColor: 'var(--dmp-accent-soft)', borderRadius: 20, padding: '14px 18px', boxShadow: 'var(--dmp-shadow-soft)' }}>
+            <p style={{ fontSize: 11, color: 'var(--dmp-accent-text)', fontWeight: 500, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: 0.6 }}>每月固定支出</p>
+            <p style={{ fontSize: 28, fontWeight: 700, color: 'var(--dmp-accent-text)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
+              NT$ {monthlyTotal.toLocaleString('zh-TW')}
+            </p>
+          </div>
+        )}
 
         {showForm && (
-          <form onSubmit={handleAdd} className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-            <p className="text-sm font-semibold text-gray-700">新增定期模板</p>
+          <form onSubmit={handleAdd} style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: 16, boxShadow: 'var(--dmp-shadow-soft)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--dmp-text)', margin: 0 }}>新增定期模板</p>
 
-            <div className="flex rounded-xl overflow-hidden border border-gray-200">
+            <div style={{ display: 'flex', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--dmp-border-strong)', backgroundColor: 'var(--dmp-surface-alt)' }}>
               {(['expense', 'topup'] as const).map((t) => (
-                <button key={t} type="button" onClick={() => setType(t)}
-                  className={`flex-1 py-2 text-sm font-medium transition ${type === t ? 'bg-indigo-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <button key={t} type="button" onClick={() => setType(t)} style={{
+                  flex: 1, padding: '8px 0', fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer',
+                  backgroundColor: type === t ? 'var(--dmp-accent)' : 'transparent',
+                  color: type === t ? '#FFFFFF' : 'var(--dmp-text-muted)',
+                }}>
                   {t === 'expense' ? '支出' : '入帳'}
                 </button>
               ))}
             </div>
 
-            <div className="flex items-center border border-gray-200 rounded-xl px-3">
-              <span className="text-gray-400 text-sm mr-1">NT$</span>
-              <input type="number" inputMode="decimal" value={amount}
-                onChange={(e) => setAmount(e.target.value)} placeholder="0" required
-                className="flex-1 py-2.5 text-sm text-gray-800 outline-none bg-transparent" />
+            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--dmp-border-strong)', borderRadius: 14, paddingLeft: 14, backgroundColor: 'var(--dmp-surface)' }}>
+              <span style={{ fontSize: 13, color: 'var(--dmp-text-muted)', marginRight: 4 }}>NT$</span>
+              <input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" required
+                style={{ flex: 1, padding: '10px 14px 10px 0', fontSize: 14, color: 'var(--dmp-text)', border: 'none', outline: 'none', background: 'transparent' }} />
             </div>
 
             {type === 'expense' && (
-              <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 outline-none bg-white">
+              <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={S.select}>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             )}
 
-            <div className="flex gap-2">
-              <select value={frequency}
-                onChange={(e) => setFrequency(e.target.value as 'monthly' | 'weekly')}
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 outline-none bg-white">
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select value={frequency} onChange={(e) => setFrequency(e.target.value as 'monthly' | 'weekly')} style={{ ...S.select }}>
                 <option value="monthly">每月</option>
                 <option value="weekly">每週</option>
               </select>
               {frequency === 'monthly' && (
-                <div className="flex items-center border border-gray-200 rounded-xl px-3 gap-1">
-                  <input type="number" min="1" max="31" value={dayOfMonth}
-                    onChange={(e) => setDayOfMonth(e.target.value)}
-                    className="w-10 py-2.5 text-sm text-gray-800 outline-none bg-transparent text-center" />
-                  <span className="text-xs text-gray-400">日</span>
+                <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--dmp-border-strong)', borderRadius: 14, padding: '0 12px', gap: 4, backgroundColor: 'var(--dmp-surface)' }}>
+                  <input type="number" min="1" max="31" value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)}
+                    style={{ width: 36, padding: '10px 0', fontSize: 14, color: 'var(--dmp-text)', border: 'none', outline: 'none', background: 'transparent', textAlign: 'center' }} />
+                  <span style={{ fontSize: 12, color: 'var(--dmp-text-muted)' }}>日</span>
                 </div>
               )}
             </div>
 
             {type === 'expense' && (
-              <div className="flex rounded-xl overflow-hidden border border-gray-200">
+              <div style={{ display: 'flex', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--dmp-border-strong)', backgroundColor: 'var(--dmp-surface-alt)' }}>
                 {(['shared', 'self'] as const).map((p) => (
-                  <button key={p} type="button" onClick={() => setPaidBy(p)}
-                    className={`flex-1 py-2 text-sm font-medium transition ${paidBy === p ? 'bg-indigo-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                  <button key={p} type="button" onClick={() => setPaidBy(p)} style={{
+                    flex: 1, padding: '8px 0', fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer',
+                    backgroundColor: paidBy === p ? 'var(--dmp-accent-soft)' : 'transparent',
+                    color: paidBy === p ? 'var(--dmp-accent-text)' : 'var(--dmp-text-muted)',
+                  }}>
                     {p === 'shared' ? '共同帳戶' : '我先墊付'}
                   </button>
                 ))}
               </div>
             )}
 
-            <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="備註（選填）"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 outline-none" />
+            <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="備註（選填）" style={S.input} />
 
-            <button type="submit" disabled={submitting}
-              className="w-full bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-xl py-3 text-sm font-semibold transition">
+            <button type="submit" disabled={submitting} style={{
+              backgroundColor: 'var(--dmp-accent)', color: '#FFFFFF', border: 'none', borderRadius: 14,
+              padding: '12px 0', fontSize: 14, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.6 : 1,
+            }}>
               {submitting ? '新增中...' : '新增定期模板'}
             </button>
           </form>
         )}
 
         {recurring.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 shadow-sm text-center text-gray-400">
-            <p className="text-3xl mb-2">🔄</p>
-            <p className="text-sm">還沒有定期交易，點右上角新增</p>
+          <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: '32px 16px', textAlign: 'center', boxShadow: 'var(--dmp-shadow-soft)' }}>
+            <p style={{ fontSize: 32, marginBottom: 8 }}>🔄</p>
+            <p style={{ fontSize: 13, color: 'var(--dmp-text-muted)' }}>還沒有定期交易，點右上角新增</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <ul className="divide-y divide-gray-50">
-              {recurring.map((item) => (
-                <li key={item.id} className="px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">{item.type === 'topup' ? '💰' : '💸'}</span>
+          <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, overflow: 'hidden', boxShadow: 'var(--dmp-shadow-soft)' }}>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              {recurring.map((item, idx) => (
+                <li key={item.id} style={{ padding: '12px 16px', borderTop: idx > 0 ? '1px solid var(--dmp-border)' : 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <CategoryAvatar categoryName={item.category?.name ?? null} size={38} />
                       <div>
-                        <p className="text-sm font-medium text-gray-800">
+                        <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--dmp-text)', margin: 0 }}>
                           {item.category?.name ?? (item.type === 'topup' ? '入帳' : '支出')}
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p style={{ fontSize: 12, color: 'var(--dmp-text-muted)', margin: '2px 0 0' }}>
                           {FREQ_LABEL[item.frequency]}
-                          {item.frequency === 'monthly' && item.day_of_month
-                            ? ` ${item.day_of_month} 日`
-                            : ''}
+                          {item.frequency === 'monthly' && item.day_of_month ? ` ${item.day_of_month} 日` : ''}
                           {item.note ? ` · ${item.note}` : ''}
                         </p>
                       </div>
                     </div>
-                    <p className={`text-sm font-semibold ${item.type === 'topup' ? 'text-green-600' : 'text-gray-800'}`}>
-                      {item.type === 'topup' ? '+' : '-'}NT$ {Number(item.amount).toLocaleString('zh-TW')}
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: item.type === 'topup' ? 'var(--dmp-income)' : 'var(--dmp-expense)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
+                        {item.type === 'topup' ? '+' : '-'}NT$ {Number(item.amount).toLocaleString('zh-TW')}
+                      </p>
+                      <button onClick={() => deactivate(item)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dmp-text-muted)', display: 'flex', padding: 4 }}
+                        aria-label="停用">
+                        <Icon name="trash" size={16} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => triggerNow(item)}
-                      disabled={triggering === item.id}
-                      className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-medium py-1.5 rounded-lg disabled:opacity-50 transition"
-                    >
+                  <div style={{ marginTop: 8 }}>
+                    <button onClick={() => triggerNow(item)} disabled={triggering === item.id}
+                      style={{
+                        width: '100%', backgroundColor: 'var(--dmp-accent-soft)', color: 'var(--dmp-accent-text)',
+                        border: 'none', borderRadius: 10, padding: '7px 0', fontSize: 13, fontWeight: 500,
+                        cursor: triggering === item.id ? 'not-allowed' : 'pointer', opacity: triggering === item.id ? 0.6 : 1,
+                      }}>
                       {triggering === item.id ? '記帳中...' : '今天記一筆'}
-                    </button>
-                    <button
-                      onClick={() => deactivate(item)}
-                      className="px-3 text-gray-400 hover:text-red-400 text-xs py-1.5 rounded-lg hover:bg-red-50 transition"
-                    >
-                      停用
                     </button>
                   </div>
                 </li>

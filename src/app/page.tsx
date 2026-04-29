@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import TransactionList from '@/components/TransactionList'
 import BalanceSummary from '@/components/BalanceSummary'
 import AddTransactionButton from '@/components/AddTransactionButton'
+import SparkBarChart from '@/components/SparkBarChart'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -27,22 +28,44 @@ export default async function Home() {
   )
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-28">
-      <header className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-lg font-bold text-gray-800">🥟 Dumplings</h1>
+    <main style={{ minHeight: '100dvh', backgroundColor: 'var(--dmp-bg)', paddingBottom: 100 }}>
+      <header style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        backgroundColor: 'var(--dmp-bg)',
+        borderBottom: '1px solid var(--dmp-border)',
+        padding: '12px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--dmp-text)', margin: 0 }}>
+          🥟 Dumplings
+        </h1>
         <form action="/auth/signout" method="post">
-          <button
-            type="submit"
-            className="text-sm text-gray-400 hover:text-gray-600"
-          >
+          <button type="submit" style={{ fontSize: 13, color: 'var(--dmp-text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
             登出
           </button>
         </form>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
         <BalanceSummary transactions={transactions ?? []} profiles={profiles} />
-        <TransactionList transactions={transactions ?? []} userId={user.id} profiles={profiles} />
+
+        <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 24, padding: '16px 20px', boxShadow: 'var(--dmp-shadow-soft)' }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--dmp-text-muted)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 }}>
+            近 14 天支出
+          </p>
+          <SparkBarChart transactions={transactions ?? []} />
+        </div>
+
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--dmp-text)' }}>最近交易</span>
+          </div>
+          <TransactionList transactions={transactions ?? []} userId={user.id} profiles={profiles} />
+        </div>
       </div>
 
       <AddTransactionButton userId={user.id} />
