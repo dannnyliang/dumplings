@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AddTransactionButton from '@/components/AddTransactionButton'
 
@@ -22,23 +22,26 @@ vi.mock('@/lib/supabase/client', () => ({
 }))
 
 describe('AddTransactionButton', () => {
-  it('顯示 + 按鈕', () => {
+  it('預設不顯示 modal', () => {
     render(<AddTransactionButton userId="uid-danny" />)
-    expect(screen.getByRole('button', { name: '新增記帳' })).toBeInTheDocument()
+    expect(screen.queryByText('新增記錄')).not.toBeInTheDocument()
   })
 
-  it('點擊按鈕後開啟 TransactionFormModal', async () => {
-    const user = userEvent.setup()
+  it('收到 dmp:open-add 事件後開啟 modal', async () => {
     render(<AddTransactionButton userId="uid-danny" />)
-    await user.click(screen.getByRole('button', { name: '新增記帳' }))
-    expect(screen.getByText('新增記錄')).toBeInTheDocument()
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('dmp:open-add'))
+    })
+    expect(screen.getAllByText('新增記錄').length).toBeGreaterThanOrEqual(1)
   })
 
   it('modal 關閉後不再顯示', async () => {
     const user = userEvent.setup()
     render(<AddTransactionButton userId="uid-danny" />)
-    await user.click(screen.getByRole('button', { name: '新增記帳' }))
-    await user.click(screen.getByRole('button', { name: '×' }))
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('dmp:open-add'))
+    })
+    await user.click(screen.getByRole('button', { name: '取消' }))
     expect(screen.queryByText('新增記錄')).not.toBeInTheDocument()
   })
 })

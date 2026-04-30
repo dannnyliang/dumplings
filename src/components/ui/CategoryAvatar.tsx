@@ -6,7 +6,7 @@ interface CategoryAvatarProps {
 }
 
 export default function CategoryAvatar({ categoryName, size = 40 }: CategoryAvatarProps) {
-  const colors = (categoryName && CATEGORY_COLORS[categoryName]) ?? FALLBACK_CATEGORY
+  const colors = (categoryName ? CATEGORY_COLORS[categoryName] : undefined) ?? FALLBACK_CATEGORY
   const radius = Math.round(size * 0.25)
   const fontSize = Math.round(size * 0.46)
 

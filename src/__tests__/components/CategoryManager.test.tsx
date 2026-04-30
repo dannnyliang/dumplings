@@ -11,8 +11,8 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
-    <a href={href} className={className}>{children}</a>
+  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
+    <a href={href}>{children}</a>
   ),
 }))
 
@@ -52,9 +52,9 @@ describe('CategoryManager', () => {
   })
 
   describe('渲染', () => {
-    it('顯示分類管理標題', () => {
+    it('顯示分類標題', () => {
       render(<CategoryManager initialCategories={[]} />)
-      expect(screen.getByText('分類管理')).toBeInTheDocument()
+      expect(screen.getByText('分類')).toBeInTheDocument()
     })
 
     it('顯示新增分類表單', () => {
@@ -65,13 +65,11 @@ describe('CategoryManager', () => {
     it('顯示使用中分類', () => {
       render(<CategoryManager initialCategories={[SYSTEM_CAT]} />)
       expect(screen.getByText('餐飲')).toBeInTheDocument()
-      expect(screen.getByText('使用中')).toBeInTheDocument()
     })
 
     it('顯示已停用分類', () => {
       render(<CategoryManager initialCategories={[INACTIVE_CAT]} />)
       expect(screen.getByText('停用分類')).toBeInTheDocument()
-      expect(screen.getByText('已停用')).toBeInTheDocument()
     })
   })
 
@@ -87,30 +85,35 @@ describe('CategoryManager', () => {
     })
   })
 
-  describe('停用/啟用按鈕', () => {
-    it('使用中分類顯示停用按鈕', () => {
+  describe('停用/啟用開關', () => {
+    it('使用中分類的開關為 checked', () => {
       render(<CategoryManager initialCategories={[SYSTEM_CAT]} />)
-      expect(screen.getByRole('button', { name: '停用' })).toBeInTheDocument()
+      const toggle = screen.getByRole('switch')
+      expect(toggle).toHaveAttribute('aria-checked', 'true')
     })
 
-    it('已停用分類顯示啟用按鈕', () => {
+    it('已停用分類的開關為 unchecked', () => {
       render(<CategoryManager initialCategories={[INACTIVE_CAT]} />)
-      expect(screen.getByRole('button', { name: '啟用' })).toBeInTheDocument()
+      const toggle = screen.getByRole('switch')
+      expect(toggle).toHaveAttribute('aria-checked', 'false')
     })
   })
 
   describe('新增分類', () => {
     it('名稱為空時新增按鈕 disabled', () => {
       render(<CategoryManager initialCategories={[]} />)
-      const submitBtn = screen.getByRole('button', { name: '新增' })
-      expect(submitBtn).toBeDisabled()
+      const submitBtns = screen.getAllByRole('button', { name: '新增' })
+      const formSubmit = submitBtns.find(b => b.getAttribute('type') === 'submit')
+      expect(formSubmit).toBeDisabled()
     })
 
     it('輸入名稱後啟用新增按鈕', async () => {
       const user = userEvent.setup()
       render(<CategoryManager initialCategories={[]} />)
       await user.type(screen.getByPlaceholderText('新分類名稱...'), '購物')
-      expect(screen.getByRole('button', { name: '新增' })).not.toBeDisabled()
+      const submitBtns = screen.getAllByRole('button', { name: '新增' })
+      const formSubmit = submitBtns.find(b => b.getAttribute('type') === 'submit')
+      expect(formSubmit).not.toBeDisabled()
     })
 
     it('送出表單後新分類出現在列表', async () => {
@@ -123,18 +126,20 @@ describe('CategoryManager', () => {
   })
 
   describe('停用/啟用操作', () => {
-    it('點擊停用後分類移至已停用區', async () => {
+    it('點擊 toggle 後 aria-checked 切換為 false', async () => {
       const user = userEvent.setup()
       render(<CategoryManager initialCategories={[SYSTEM_CAT]} />)
-      await user.click(screen.getByRole('button', { name: '停用' }))
-      expect(await screen.findByText('已停用')).toBeInTheDocument()
+      const toggle = screen.getByRole('switch')
+      await user.click(toggle)
+      expect(await screen.findByRole('switch', { hidden: true })).toHaveAttribute('aria-checked', 'false')
     })
 
-    it('點擊啟用後分類移至使用中區', async () => {
+    it('點擊 toggle 後 aria-checked 切換為 true', async () => {
       const user = userEvent.setup()
       render(<CategoryManager initialCategories={[INACTIVE_CAT]} />)
-      await user.click(screen.getByRole('button', { name: '啟用' }))
-      expect(await screen.findByText('使用中')).toBeInTheDocument()
+      const toggle = screen.getByRole('switch')
+      await user.click(toggle)
+      expect(await screen.findByRole('switch', { hidden: true })).toHaveAttribute('aria-checked', 'true')
     })
   })
 

@@ -78,11 +78,13 @@ export default function ReportView({ transactions, selectedMonth }: ReportViewPr
         {/* month picker */}
         <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--dmp-shadow-soft)' }}>
           <button onClick={() => router.push(`/reports?month=${prevMonth(selectedMonth)}`)}
+            aria-label="上一個月"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dmp-text-muted)', display: 'flex', padding: 6 }}>
             <Icon name="chevL" size={18} />
           </button>
           <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--dmp-text)' }}>{formatMonth(selectedMonth)}</span>
           <button onClick={() => router.push(`/reports?month=${nextMonth(selectedMonth)}`)}
+            aria-label="下一個月"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dmp-text-muted)', display: 'flex', padding: 6 }}>
             <Icon name="chevR" size={18} />
           </button>
@@ -146,6 +148,7 @@ export default function ReportView({ transactions, selectedMonth }: ReportViewPr
             style={{ flex: 1, fontSize: 14, color: 'var(--dmp-text)', background: 'none', border: 'none', outline: 'none' }} />
           {search && (
             <button onClick={() => setSearch('')}
+              aria-label="清除"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dmp-text-muted)', display: 'flex' }}>
               <Icon name="close" size={16} />
             </button>

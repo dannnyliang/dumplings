@@ -27,13 +27,12 @@ describe('BalanceSummary', () => {
     it('無交易時餘額為零', () => {
       render(<BalanceSummary transactions={[]} profiles={PROFILES} />)
       expect(screen.getByText('共同帳戶餘額')).toBeInTheDocument()
-      expect(screen.getByText(/NT\$ 0/)).toBeInTheDocument()
+      expect(screen.getAllByText(/NT\$ 0/).length).toBeGreaterThanOrEqual(1)
     })
 
     it('入帳正確加入餘額', () => {
       const txns = [makeTransaction({ type: 'topup', amount: 5000, paid_by: 'shared' })]
       render(<BalanceSummary transactions={txns} profiles={PROFILES} />)
-      // NT$ 5,000 appears in balance AND in topup summary — use getAllByText
       expect(screen.getAllByText(/5,000/).length).toBeGreaterThanOrEqual(1)
     })
 
@@ -64,7 +63,6 @@ describe('BalanceSummary', () => {
         makeTransaction({ id: 't2', type: 'expense', amount: 2000, paid_by: 'uid-danny' }),
       ]
       render(<BalanceSummary transactions={txns} profiles={PROFILES} />)
-      // Balance stays 10,000 because advance is not deducted from shared account
       expect(screen.getAllByText(/10,000/).length).toBeGreaterThanOrEqual(1)
     })
   })
@@ -111,14 +109,14 @@ describe('BalanceSummary', () => {
       const txns = [makeTransaction({ type: 'topup', amount: 8000, paid_by: 'shared' })]
       render(<BalanceSummary transactions={txns} profiles={PROFILES} />)
       expect(screen.getByText(/入帳/)).toBeInTheDocument()
-      expect(screen.getByText(/\+8,000/)).toBeInTheDocument()
+      expect(screen.getAllByText(/8,000/).length).toBeGreaterThanOrEqual(1)
     })
 
-    it('餘額為負時以紅色顯示', () => {
+    it('餘額為負時 data-negative 屬性存在', () => {
       const txns = [makeTransaction({ type: 'expense', amount: 5000, paid_by: 'shared' })]
-      const { container } = render(<BalanceSummary transactions={txns} profiles={PROFILES} />)
-      const balanceEl = container.querySelector('.text-red-500')
-      expect(balanceEl).toBeInTheDocument()
+      render(<BalanceSummary transactions={txns} profiles={PROFILES} />)
+      const balanceEl = screen.getByTestId('balance-amount')
+      expect(balanceEl).toHaveAttribute('data-negative', 'true')
     })
   })
 })

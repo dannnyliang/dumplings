@@ -11,8 +11,8 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
-    <a href={href} className={className}>{children}</a>
+  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
+    <a href={href}>{children}</a>
   ),
 }))
 
@@ -97,7 +97,7 @@ describe('RecurringManager', () => {
       expect(screen.getByRole('button', { name: '今天記一筆' })).toBeInTheDocument()
     })
 
-    it('每個模板顯示「停用」按鈕', () => {
+    it('每個模板顯示停用按鈕', () => {
       const items = [makeRecurring({})]
       render(<RecurringManager initialRecurring={items} categories={CATEGORIES} userId="uid-danny" />)
       expect(screen.getByRole('button', { name: '停用' })).toBeInTheDocument()
@@ -110,18 +110,17 @@ describe('RecurringManager', () => {
       expect(screen.queryByText('新增定期模板')).not.toBeInTheDocument()
     })
 
-    it('點擊「+ 新增」顯示表單', async () => {
+    it('點擊「新增」顯示表單', async () => {
       const user = userEvent.setup()
       render(<RecurringManager initialRecurring={[]} categories={CATEGORIES} userId="uid-danny" />)
-      await user.click(screen.getByRole('button', { name: '+ 新增' }))
-      // "新增定期模板" appears both as the form heading and as the submit button text
+      await user.click(screen.getByRole('button', { name: '新增' }))
       expect(screen.getAllByText('新增定期模板').length).toBeGreaterThanOrEqual(1)
     })
 
     it('點擊「取消」隱藏表單', async () => {
       const user = userEvent.setup()
       render(<RecurringManager initialRecurring={[]} categories={CATEGORIES} userId="uid-danny" />)
-      await user.click(screen.getByRole('button', { name: '+ 新增' }))
+      await user.click(screen.getByRole('button', { name: '新增' }))
       await user.click(screen.getByRole('button', { name: '取消' }))
       expect(screen.queryByText('新增定期模板')).not.toBeInTheDocument()
     })

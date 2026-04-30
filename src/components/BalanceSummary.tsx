@@ -64,14 +64,18 @@ export default function BalanceSummary({ transactions, profiles }: BalanceSummar
         <p style={{ fontSize: 11, color: 'var(--dmp-text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>
           共同帳戶餘額
         </p>
-        <p style={{
-          fontSize: 40,
-          fontWeight: 700,
-          color: balance >= 0 ? 'var(--dmp-text)' : 'var(--dmp-expense-b)',
-          fontFamily: '"SF Mono", ui-monospace, monospace',
-          letterSpacing: -0.5,
-          lineHeight: 1,
-        }}>
+        <p
+          data-testid="balance-amount"
+          data-negative={balance < 0 ? 'true' : undefined}
+          style={{
+            fontSize: 40,
+            fontWeight: 700,
+            color: balance >= 0 ? 'var(--dmp-text)' : 'var(--dmp-expense-b)',
+            fontFamily: '"SF Mono", ui-monospace, monospace',
+            letterSpacing: -0.5,
+            lineHeight: 1,
+          }}
+        >
           NT$ {balance.toLocaleString('zh-TW')}
         </p>
       </div>

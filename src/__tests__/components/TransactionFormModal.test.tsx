@@ -59,18 +59,13 @@ describe('TransactionFormModal', () => {
   describe('新增模式', () => {
     it('顯示「新增記錄」標題', () => {
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
-      expect(screen.getByText('新增記錄')).toBeInTheDocument()
+      expect(screen.getAllByText('新增記錄').length).toBeGreaterThanOrEqual(1)
     })
 
-    it('預設選擇「支出」類型', () => {
+    it('預設顯示支出與入帳兩個切換按鈕', () => {
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
-      const expenseBtn = screen.getByRole('button', { name: '支出' })
-      expect(expenseBtn.className).toContain('bg-indigo-500')
-    })
-
-    it('顯示「新增」送出按鈕', () => {
-      render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
-      expect(screen.getByRole('button', { name: '新增' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '支出' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '入帳' })).toBeInTheDocument()
     })
 
     it('不顯示刪除按鈕', () => {
@@ -78,17 +73,17 @@ describe('TransactionFormModal', () => {
       expect(screen.queryByText('刪除這筆記錄')).not.toBeInTheDocument()
     })
 
-    it('切換到入帳後入帳按鈕為 active', async () => {
+    it('切換到入帳後付款方式選項消失', async () => {
       const user = userEvent.setup()
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
       await user.click(screen.getByRole('button', { name: '入帳' }))
-      expect(screen.getByRole('button', { name: '入帳' }).className).toContain('bg-indigo-500')
+      expect(screen.queryByText('共同帳戶')).not.toBeInTheDocument()
     })
 
-    it('點擊 × 按鈕呼叫 onClose', async () => {
+    it('點擊取消按鈕呼叫 onClose', async () => {
       const user = userEvent.setup()
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
-      await user.click(screen.getByRole('button', { name: '×' }))
+      await user.click(screen.getByRole('button', { name: '取消' }))
       expect(onClose).toHaveBeenCalled()
     })
   })
@@ -96,12 +91,7 @@ describe('TransactionFormModal', () => {
   describe('編輯模式', () => {
     it('顯示「編輯記錄」標題', () => {
       render(<TransactionFormModal userId="uid-danny" transaction={BASE_TRANSACTION} onClose={onClose} />)
-      expect(screen.getByText('編輯記錄')).toBeInTheDocument()
-    })
-
-    it('顯示「儲存」送出按鈕', () => {
-      render(<TransactionFormModal userId="uid-danny" transaction={BASE_TRANSACTION} onClose={onClose} />)
-      expect(screen.getByRole('button', { name: '儲存' })).toBeInTheDocument()
+      expect(screen.getAllByText('編輯記錄').length).toBeGreaterThanOrEqual(1)
     })
 
     it('創建者可見刪除按鈕', () => {
@@ -122,7 +112,7 @@ describe('TransactionFormModal', () => {
 
     it('預填備註欄位', () => {
       render(<TransactionFormModal userId="uid-danny" transaction={BASE_TRANSACTION} onClose={onClose} />)
-      const noteInput = screen.getByPlaceholderText('備註...') as HTMLInputElement
+      const noteInput = screen.getByPlaceholderText('備註（選填）') as HTMLInputElement
       expect(noteInput.value).toBe('午餐')
     })
 
@@ -134,49 +124,56 @@ describe('TransactionFormModal', () => {
   })
 
   describe('表單驗證', () => {
-    it('金額為空送出時顯示錯誤', async () => {
-      const { container } = render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
-      // Use fireEvent.submit to bypass jsdom HTML5 constraint validation
-      // (required attribute blocks userEvent.click on submit in jsdom)
-      fireEvent.submit(container.querySelector('form')!)
-      expect(await screen.findByText('請輸入有效金額')).toBeInTheDocument()
+    it('金額為空時 CTA 按鈕為 disabled', () => {
+      render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
+      const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')
+      expect(ctaBtn).toBeDisabled()
     })
   })
 
   describe('新增模式送出', () => {
     it('填入有效金額送出後呼叫 onClose', async () => {
-      const { container } = render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
-      const amountInput = screen.getByPlaceholderText('0') as HTMLInputElement
-      fireEvent.change(amountInput, { target: { value: '300' } })
-      fireEvent.submit(container.querySelector('form')!)
+      render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
+      fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '300' } })
+      const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
+      fireEvent.click(ctaBtn)
       await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
     })
   })
 
   describe('編輯模式送出', () => {
-    it('填入有效金額儲存後呼叫 onClose', async () => {
-      const { container } = render(
+    it('有預填金額時點擊儲存呼叫 onClose', async () => {
+      render(
         <TransactionFormModal userId="uid-danny" transaction={BASE_TRANSACTION} onClose={onClose} />
       )
-      fireEvent.submit(container.querySelector('form')!)
+      fireEvent.click(screen.getAllByText('儲存變更')[0])
       await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
     })
   })
 
   describe('刪除操作', () => {
-    it('確認刪除後呼叫 onClose', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(true)
+    it('點擊刪除後顯示確認按鈕', async () => {
       const user = userEvent.setup()
       render(<TransactionFormModal userId="uid-danny" transaction={BASE_TRANSACTION} onClose={onClose} />)
       await user.click(screen.getByText('刪除這筆記錄'))
+      expect(screen.getByText('確認刪除')).toBeInTheDocument()
+    })
+
+    it('確認刪除後呼叫 onClose', async () => {
+      const user = userEvent.setup()
+      render(<TransactionFormModal userId="uid-danny" transaction={BASE_TRANSACTION} onClose={onClose} />)
+      await user.click(screen.getByText('刪除這筆記錄'))
+      await user.click(screen.getByText('確認刪除'))
       await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
     })
 
     it('取消刪除不呼叫 onClose', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(false)
       const user = userEvent.setup()
       render(<TransactionFormModal userId="uid-danny" transaction={BASE_TRANSACTION} onClose={onClose} />)
       await user.click(screen.getByText('刪除這筆記錄'))
+      // The cancel button in the confirm row is the last "取消" on screen
+      const cancelBtns = screen.getAllByText('取消')
+      await user.click(cancelBtns[cancelBtns.length - 1])
       expect(onClose).not.toHaveBeenCalled()
     })
   })

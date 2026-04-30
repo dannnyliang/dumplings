@@ -9,8 +9,8 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
-    <a href={href} className={className}>{children}</a>
+  default: ({ href, children, style }: { href: string; children: React.ReactNode; style?: React.CSSProperties }) => (
+    <a href={href} style={style}>{children}</a>
   ),
 }))
 
@@ -27,39 +27,39 @@ describe('BottomNav', () => {
     expect(screen.getByText('定期')).toBeInTheDocument()
   })
 
-  it('首頁路徑時首頁 tab 為 active（indigo）', () => {
+  it('首頁路徑時首頁 tab 為 active（fontWeight 600）', () => {
     mockUsePathname.mockReturnValue('/')
     render(<BottomNav />)
     const homeLink = screen.getByText('首頁').closest('a')
-    expect(homeLink?.className).toContain('text-indigo-500')
+    expect(homeLink?.style.fontWeight).toBe('600')
   })
 
-  it('首頁路徑時其他 tab 為 inactive（gray）', () => {
+  it('首頁路徑時其他 tab 為 inactive（fontWeight 500）', () => {
     mockUsePathname.mockReturnValue('/')
     render(<BottomNav />)
     const reportsLink = screen.getByText('報表').closest('a')
-    expect(reportsLink?.className).toContain('text-gray-400')
+    expect(reportsLink?.style.fontWeight).toBe('500')
   })
 
   it('/reports 路徑時報表 tab 為 active', () => {
     mockUsePathname.mockReturnValue('/reports')
     render(<BottomNav />)
     const reportsLink = screen.getByText('報表').closest('a')
-    expect(reportsLink?.className).toContain('text-indigo-500')
+    expect(reportsLink?.style.fontWeight).toBe('600')
   })
 
   it('/categories 路徑時分類 tab 為 active', () => {
     mockUsePathname.mockReturnValue('/categories')
     render(<BottomNav />)
     const categoriesLink = screen.getByText('分類').closest('a')
-    expect(categoriesLink?.className).toContain('text-indigo-500')
+    expect(categoriesLink?.style.fontWeight).toBe('600')
   })
 
   it('/recurring 路徑時定期 tab 為 active', () => {
     mockUsePathname.mockReturnValue('/recurring')
     render(<BottomNav />)
     const recurringLink = screen.getByText('定期').closest('a')
-    expect(recurringLink?.className).toContain('text-indigo-500')
+    expect(recurringLink?.style.fontWeight).toBe('600')
   })
 
   it('連結指向正確的 href', () => {

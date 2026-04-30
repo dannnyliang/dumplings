@@ -11,8 +11,8 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
-    <a href={href} className={className}>{children}</a>
+  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
+    <a href={href}>{children}</a>
   ),
 }))
 
@@ -66,14 +66,12 @@ describe('ReportView', () => {
         makeTxn({ id: 't2', type: 'expense', amount: 2000 }),
       ]
       render(<ReportView transactions={txns} selectedMonth="2026-04" />)
-      // 5,000 appears in both the summary card and the transaction list
       expect(screen.getAllByText(/5,000/).length).toBeGreaterThanOrEqual(1)
     })
 
     it('顯示本月入帳合計', () => {
       const txns = [makeTxn({ type: 'topup', amount: 8000, category_id: null })]
       render(<ReportView transactions={txns} selectedMonth="2026-04" />)
-      // 8,000 appears in both the summary card and the transaction list
       expect(screen.getAllByText(/8,000/).length).toBeGreaterThanOrEqual(1)
     })
 
@@ -87,21 +85,21 @@ describe('ReportView', () => {
     it('點擊上一個月按鈕導向正確路徑', async () => {
       const user = userEvent.setup()
       render(<ReportView transactions={[]} selectedMonth="2026-04" />)
-      await user.click(screen.getByText('‹'))
+      await user.click(screen.getByRole('button', { name: '上一個月' }))
       expect(mockPush).toHaveBeenCalledWith('/reports?month=2026-03')
     })
 
     it('點擊下一個月按鈕導向正確路徑', async () => {
       const user = userEvent.setup()
       render(<ReportView transactions={[]} selectedMonth="2026-04" />)
-      await user.click(screen.getByText('›'))
+      await user.click(screen.getByRole('button', { name: '下一個月' }))
       expect(mockPush).toHaveBeenCalledWith('/reports?month=2026-05')
     })
 
     it('年底跨年月份計算正確', async () => {
       const user = userEvent.setup()
       render(<ReportView transactions={[]} selectedMonth="2026-12" />)
-      await user.click(screen.getByText('›'))
+      await user.click(screen.getByRole('button', { name: '下一個月' }))
       expect(mockPush).toHaveBeenCalledWith('/reports?month=2027-01')
     })
   })
@@ -121,8 +119,6 @@ describe('ReportView', () => {
 
     it('搜尋分類名稱過濾記錄', async () => {
       const user = userEvent.setup()
-      // Use notes instead of categories — category names also appear in the pie chart
-      // so they can't be used to verify filtering
       const txns = [
         makeTxn({ id: 't1', note: '搜尋目標記錄' }),
         makeTxn({ id: 't2', note: '應被過濾掉的記錄' }),
@@ -145,9 +141,9 @@ describe('ReportView', () => {
       const user = userEvent.setup()
       render(<ReportView transactions={[]} selectedMonth="2026-04" />)
       await user.type(screen.getByPlaceholderText('搜尋備註或分類...'), 'abc')
-      expect(screen.getByRole('button', { name: '×' })).toBeInTheDocument()
-      await user.click(screen.getByRole('button', { name: '×' }))
-      expect(screen.queryByRole('button', { name: '×' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '清除' })).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: '清除' }))
+      expect(screen.queryByRole('button', { name: '清除' })).not.toBeInTheDocument()
     })
   })
 
