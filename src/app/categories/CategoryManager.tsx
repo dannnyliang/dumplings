@@ -7,50 +7,60 @@ import { createClient } from '@/lib/supabase/client'
 import CategoryAvatar from '@/components/ui/CategoryAvatar'
 import Toggle from '@/components/ui/Toggle'
 import Icon from '@/components/ui/Icon'
+import CategoryForm, { type CategoryFormData } from './CategoryForm'
 import type { Category } from '@/types/database'
 
 interface CategoryManagerProps {
   initialCategories: Category[]
 }
 
+type FormMode = 'none' | 'add' | string // string = category id being edited
+
 export default function CategoryManager({ initialCategories }: CategoryManagerProps) {
   const router = useRouter()
   const [categories, setCategories] = useState(initialCategories)
-  const [newName, setNewName] = useState('')
-  const [adding, setAdding] = useState(false)
+  const [formMode, setFormMode] = useState<FormMode>('none')
   const [error, setError] = useState<string | null>(null)
 
-  const activeCategories = categories.filter((c) => c.is_active)
-  const inactiveCategories = categories.filter((c) => !c.is_active)
+  function closeForm() {
+    setFormMode('none')
+    setError(null)
+  }
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    const name = newName.trim()
-    if (!name) return
-
-    setAdding(true)
+  async function handleAdd(data: CategoryFormData) {
     setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setError('請重新登入')
-      setAdding(false)
-      return
-    }
+    if (!user) { setError('請重新登入'); return }
 
-    const { data, error: insertError } = await supabase
+    const { data: inserted, error: insertError } = await supabase
       .from('categories')
-      .insert({ name, created_by: user.id })
+      .insert({ name: data.name, emoji: data.emoji, color: data.color, created_by: user.id })
       .select()
       .single()
 
-    if (insertError || !data) {
+    if (insertError || !inserted) {
       setError('新增失敗')
-    } else {
-      setCategories((prev) => [...prev, data as Category])
-      setNewName('')
+      return
     }
-    setAdding(false)
+    setCategories(prev => [...prev, inserted as Category])
+    closeForm()
+  }
+
+  async function handleEdit(category: Category, data: CategoryFormData) {
+    setError(null)
+    const supabase = createClient()
+    const { error: updateError } = await supabase
+      .from('categories')
+      .update({ name: data.name, emoji: data.emoji, color: data.color })
+      .eq('id', category.id)
+
+    if (updateError) { setError('更新失敗'); return }
+    setCategories(prev =>
+      prev.map(c => c.id === category.id ? { ...c, ...data } : c)
+    )
+    closeForm()
+    router.refresh()
   }
 
   async function toggleActive(category: Category) {
@@ -60,12 +70,9 @@ export default function CategoryManager({ initialCategories }: CategoryManagerPr
       .update({ is_active: !category.is_active })
       .eq('id', category.id)
 
-    if (updateError) {
-      setError('更新失敗')
-      return
-    }
-    setCategories((prev) =>
-      prev.map((c) => (c.id === category.id ? { ...c, is_active: !c.is_active } : c))
+    if (updateError) { setError('更新失敗'); return }
+    setCategories(prev =>
+      prev.map(c => c.id === category.id ? { ...c, is_active: !c.is_active } : c)
     )
     router.refresh()
   }
@@ -78,14 +85,11 @@ export default function CategoryManager({ initialCategories }: CategoryManagerPr
       .delete()
       .eq('id', category.id)
 
-    if (deleteError) {
-      setError('刪除失敗（此分類可能仍有交易紀錄）')
-      return
-    }
-    setCategories((prev) => prev.filter((c) => c.id !== category.id))
+    if (deleteError) { setError('刪除失敗（此分類可能仍有交易紀錄）'); return }
+    setCategories(prev => prev.filter(c => c.id !== category.id))
   }
 
-  const allCategories = [...activeCategories, ...inactiveCategories]
+  const sorted = [...categories].sort((a, b) => a.created_at.localeCompare(b.created_at))
 
   return (
     <main style={{ minHeight: '100dvh', backgroundColor: 'var(--dmp-bg)', paddingBottom: 100 }}>
@@ -103,96 +107,109 @@ export default function CategoryManager({ initialCategories }: CategoryManagerPr
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--dmp-text)', margin: 0 }}>分類</h1>
         </div>
         <button
-          onClick={() => document.getElementById('new-cat-input')?.focus()}
-          style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14, fontWeight: 500, color: 'var(--dmp-accent)', background: 'none', border: 'none', cursor: 'pointer' }}
+          onClick={() => setFormMode(f => f === 'add' ? 'none' : 'add')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            fontSize: 14, fontWeight: 500,
+            color: formMode === 'add' ? 'var(--dmp-text-muted)' : 'var(--dmp-accent)',
+            background: 'none', border: 'none', cursor: 'pointer',
+          }}
         >
-          <Icon name="plus" size={18} strokeWidth={2} />
-          新增
+          <Icon name={formMode === 'add' ? 'close' : 'plus'} size={18} strokeWidth={2} />
+          {formMode === 'add' ? '取消' : '新增'}
         </button>
       </header>
 
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8 }}>
-          <input
-            id="new-cat-input"
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="新分類名稱..."
-            style={{
-              flex: 1,
-              border: '1px solid var(--dmp-border-strong)',
-              borderRadius: 14,
-              padding: '10px 14px',
-              fontSize: 14,
-              color: 'var(--dmp-text)',
-              backgroundColor: 'var(--dmp-surface)',
-              outline: 'none',
-            }}
-          />
-          <button
-            type="submit"
-            disabled={adding || !newName.trim()}
-            style={{
-              backgroundColor: 'var(--dmp-accent)',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: 14,
-              padding: '10px 18px',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: adding || !newName.trim() ? 'not-allowed' : 'pointer',
-              opacity: adding || !newName.trim() ? 0.5 : 1,
-            }}
-          >
-            新增
-          </button>
-        </form>
 
-        {error && <p style={{ fontSize: 12, color: '#B83B3B' }}>{error}</p>}
+        {/* Add form */}
+        {formMode === 'add' && (
+          <div style={{
+            backgroundColor: 'var(--dmp-surface)',
+            borderRadius: 20,
+            padding: '20px 16px',
+            boxShadow: 'var(--dmp-shadow-soft)',
+          }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--dmp-text-muted)', marginBottom: 16, marginTop: 0 }}>
+              新增分類
+            </p>
+            <CategoryForm
+              submitLabel="新增"
+              onSubmit={handleAdd}
+              onCancel={closeForm}
+            />
+          </div>
+        )}
 
-        {allCategories.length > 0 && (
-          <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, overflow: 'hidden', boxShadow: 'var(--dmp-shadow-soft)' }}>
+        {error && <p style={{ fontSize: 12, color: '#B83B3B', margin: 0 }}>{error}</p>}
+
+        {sorted.length > 0 && (
+          <div style={{
+            backgroundColor: 'var(--dmp-surface)',
+            borderRadius: 20,
+            overflow: 'hidden',
+            boxShadow: 'var(--dmp-shadow-soft)',
+          }}>
             <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--dmp-border)' }}>
               <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--dmp-text-muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                全部分類 · {allCategories.length}
+                全部分類 · {sorted.length}
               </span>
             </div>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-              {allCategories.map((c, idx) => (
+              {sorted.map((c, idx) => (
                 <li
                   key={c.id}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 16px',
                     borderTop: idx > 0 ? '1px solid var(--dmp-border)' : 'none',
                     opacity: c.is_active ? 1 : 0.55,
                     backgroundColor: c.is_active ? 'transparent' : 'var(--dmp-surface-alt)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <CategoryAvatar categoryName={c.name} size={36} />
-                    <span style={{ fontSize: 14, fontWeight: 500, color: c.is_active ? 'var(--dmp-text)' : 'var(--dmp-text-muted)' }}>
-                      {c.name}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {c.created_by && (
-                      <button
-                        onClick={() => deleteCategory(c)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dmp-text-muted)', display: 'flex', padding: 4 }}
-                        aria-label="刪除"
-                      >
-                        <Icon name="trash" size={16} />
-                      </button>
-                    )}
-                    <Toggle
-                      checked={c.is_active}
-                      onChange={() => toggleActive(c)}
-                    />
-                  </div>
+                  {formMode === c.id ? (
+                    <div style={{ padding: '16px' }}>
+                      <CategoryForm
+                        initialData={{ name: c.name, emoji: c.emoji ?? '', color: c.color }}
+                        onSubmit={data => handleEdit(c, data)}
+                        onCancel={closeForm}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <CategoryAvatar categoryName={c.name} emoji={c.emoji} color={c.color} size={36} />
+                        <span style={{ fontSize: 14, fontWeight: 500, color: c.is_active ? 'var(--dmp-text)' : 'var(--dmp-text-muted)' }}>
+                          {c.name}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button
+                          onClick={() => setFormMode(c.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dmp-text-muted)', display: 'flex', padding: 4 }}
+                          aria-label="編輯"
+                        >
+                          <Icon name="pencil" size={15} />
+                        </button>
+                        {c.created_by && (
+                          <button
+                            onClick={() => deleteCategory(c)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dmp-text-muted)', display: 'flex', padding: 4 }}
+                            aria-label="刪除"
+                          >
+                            <Icon name="trash" size={16} />
+                          </button>
+                        )}
+                        <Toggle
+                          checked={c.is_active}
+                          onChange={() => toggleActive(c)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

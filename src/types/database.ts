@@ -10,6 +10,8 @@ export interface Profile {
 export interface Category {
   id: string
   name: string
+  emoji: string | null
+  color: string | null
   created_by: string | null
   is_active: boolean
   created_at: string

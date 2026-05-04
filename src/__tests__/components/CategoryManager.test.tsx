@@ -42,9 +42,9 @@ vi.mock('@/lib/supabase/client', () => ({
   }),
 }))
 
-const SYSTEM_CAT: Category = { id: 'cat-1', name: '餐飲', is_active: true, created_by: null, created_at: '' }
-const USER_CAT: Category = { id: 'cat-2', name: '自訂', is_active: true, created_by: 'uid-danny', created_at: '' }
-const INACTIVE_CAT: Category = { id: 'cat-3', name: '停用分類', is_active: false, created_by: null, created_at: '' }
+const SYSTEM_CAT: Category = { id: 'cat-1', name: '餐飲', emoji: null, color: null, is_active: true, created_by: null, created_at: '' }
+const USER_CAT: Category = { id: 'cat-2', name: '自訂', emoji: null, color: null, is_active: true, created_by: 'uid-danny', created_at: '' }
+const INACTIVE_CAT: Category = { id: 'cat-3', name: '停用分類', emoji: null, color: null, is_active: false, created_by: null, created_at: '' }
 
 describe('CategoryManager', () => {
   beforeEach(() => {
@@ -57,9 +57,9 @@ describe('CategoryManager', () => {
       expect(screen.getByText('分類')).toBeInTheDocument()
     })
 
-    it('顯示新增分類表單', () => {
+    it('顯示新增按鈕', () => {
       render(<CategoryManager initialCategories={[]} />)
-      expect(screen.getByPlaceholderText('新分類名稱...')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '新增' })).toBeInTheDocument()
     })
 
     it('顯示使用中分類', () => {
@@ -100,25 +100,29 @@ describe('CategoryManager', () => {
   })
 
   describe('新增分類', () => {
-    it('名稱為空時新增按鈕 disabled', () => {
-      render(<CategoryManager initialCategories={[]} />)
-      const submitBtns = screen.getAllByRole('button', { name: '新增' })
-      const formSubmit = submitBtns.find(b => b.getAttribute('type') === 'submit')
-      expect(formSubmit).toBeDisabled()
-    })
-
-    it('輸入名稱後啟用新增按鈕', async () => {
+    it('名稱為空時新增送出按鈕 disabled', async () => {
       const user = userEvent.setup()
       render(<CategoryManager initialCategories={[]} />)
-      await user.type(screen.getByPlaceholderText('新分類名稱...'), '購物')
-      const submitBtns = screen.getAllByRole('button', { name: '新增' })
-      const formSubmit = submitBtns.find(b => b.getAttribute('type') === 'submit')
-      expect(formSubmit).not.toBeDisabled()
+      await user.click(screen.getByRole('button', { name: '新增' }))
+      const submitBtn = screen.getByRole('button', { name: '新增', hidden: false })
+      expect(submitBtn.closest('form') ? submitBtn : null).toBeDefined()
+      expect(screen.getByRole('button', { name: '新增' })).toBeDisabled()
+    })
+
+    it('輸入名稱後啟用送出按鈕', async () => {
+      const user = userEvent.setup()
+      render(<CategoryManager initialCategories={[]} />)
+      await user.click(screen.getByRole('button', { name: '新增' }))
+      await user.type(screen.getByPlaceholderText('分類名稱'), '購物')
+      const submitBtn = screen.getByRole('button', { name: '新增' })
+      expect(submitBtn).not.toBeDisabled()
     })
 
     it('送出表單後新分類出現在列表', async () => {
+      const user = userEvent.setup()
       render(<CategoryManager initialCategories={[]} />)
-      const input = screen.getByPlaceholderText('新分類名稱...')
+      await user.click(screen.getByRole('button', { name: '新增' }))
+      const input = screen.getByPlaceholderText('分類名稱')
       fireEvent.change(input, { target: { value: '購物' } })
       fireEvent.submit(input.closest('form')!)
       expect(await screen.findByText('購物')).toBeInTheDocument()

@@ -97,7 +97,7 @@ describe('TransactionList', () => {
     })
 
     it('顯示分類名稱', () => {
-      const txns = [makeTxn({ category: { id: 'cat-1', name: '餐飲', is_active: true, created_by: null, created_at: '' } })]
+      const txns = [makeTxn({ category: { id: 'cat-1', name: '餐飲', emoji: null, color: null, is_active: true, created_by: null, created_at: '' } })]
       render(<TransactionList transactions={txns} userId="uid-danny" profiles={PROFILES} />)
       expect(screen.getByText('餐飲')).toBeInTheDocument()
     })

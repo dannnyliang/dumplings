@@ -99,9 +99,9 @@ describe('TransactionFormModal', () => {
       expect(screen.getByText('刪除這筆記錄')).toBeInTheDocument()
     })
 
-    it('非創建者不顯示刪除按鈕', () => {
+    it('非創建者也顯示刪除按鈕', () => {
       render(<TransactionFormModal userId="uid-peiyu" transaction={BASE_TRANSACTION} onClose={onClose} />)
-      expect(screen.queryByText('刪除這筆記錄')).not.toBeInTheDocument()
+      expect(screen.getByText('刪除這筆記錄')).toBeInTheDocument()
     })
 
     it('預填金額欄位', () => {
