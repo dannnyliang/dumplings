@@ -14,6 +14,8 @@ const NAV_ITEMS = [
 export default function BottomNav() {
   const pathname = usePathname()
 
+  if (pathname === '/login') return null
+
   function handleFab() {
     window.dispatchEvent(new CustomEvent('dmp:open-add'))
   }
@@ -84,7 +86,7 @@ export default function BottomNav() {
               alignItems: 'center',
               justifyContent: 'center',
               marginTop: -14,
-              boxShadow: '0 2px 8px rgba(184,86,43,0.35), 0 0 0 4px var(--dmp-surface)',
+              boxShadow: '0 2px 8px rgba(184,86,43,0.35), 0 0 0 4px rgba(255,253,249,0.95)',
               flexShrink: 0,
               transition: 'transform 0.1s ease',
             }}
