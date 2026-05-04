@@ -119,6 +119,24 @@ export default function TransactionFormModal({
     onClose()
   }
 
+  async function handleUnreimburse() {
+    if (!transaction) return
+    setSubmitting(true)
+    const supabase = createClient()
+    const { error: updateError } = await supabase
+      .from('transactions')
+      .update({ is_reimbursed: false, reimbursed_at: null })
+      .eq('id', transaction.id)
+
+    if (updateError) {
+      setError('還原失敗，請再試一次')
+      setSubmitting(false)
+      return
+    }
+    router.refresh()
+    onClose()
+  }
+
   return (
     <div
       ref={backdropRef}
@@ -312,8 +330,20 @@ export default function TransactionFormModal({
             {submitting ? '處理中...' : isEdit ? '儲存變更' : '新增記錄'}
           </button>
 
+          {/* unreimburse (edit only, advance payment already settled) */}
+          {isEdit && transaction?.is_reimbursed && transaction?.paid_by !== 'shared' && (
+            <button
+              type="button"
+              onClick={handleUnreimburse}
+              disabled={submitting}
+              style={{ width: '100%', padding: '10px 0', borderRadius: 14, border: '1.5px solid var(--dmp-border-strong)', fontSize: 14, fontWeight: 500, cursor: 'pointer', background: 'none', color: 'var(--dmp-text-muted)' }}
+            >
+              還原為「未還清」
+            </button>
+          )}
+
           {/* delete (edit only) */}
-          {isEdit && transaction?.created_by === userId && (
+          {isEdit && (
             confirmDelete ? (
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
