@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-TW" className={`${notoSansTC.variable} h-full antialiased`}>
+    <html lang="zh-TW" className={`${notoSansTC.variable} h-full antialiased`} style={{ colorScheme: 'light' }}>
       <body className="min-h-full flex flex-col">
         {children}
         <BottomNav />
