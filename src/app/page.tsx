@@ -4,6 +4,7 @@ import TransactionList from '@/components/TransactionList'
 import BalanceSummary from '@/components/BalanceSummary'
 import AddTransactionButton from '@/components/AddTransactionButton'
 import SparkBarChart from '@/components/SparkBarChart'
+import DumplingMark from '@/components/ui/DumplingMark'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -40,8 +41,9 @@ export default async function Home() {
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--dmp-text)', margin: 0 }}>
-          🥟 Dumplings
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 20, fontWeight: 700, color: 'var(--dmp-text)', margin: 0 }}>
+          <DumplingMark size={28} />
+          Dumplings
         </h1>
         <form action="/auth/signout" method="post">
           <button type="submit" style={{ fontSize: 13, color: 'var(--dmp-text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
