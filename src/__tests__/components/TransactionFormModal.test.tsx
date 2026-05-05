@@ -10,7 +10,10 @@ const mockSupabase = {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
         order: vi.fn(() =>
-          Promise.resolve({ data: [{ id: 'cat-1', name: '餐飲', is_active: true }], error: null })
+          Promise.resolve({
+            data: [{ id: 'cat-1', name: '餐飲', emoji: '🍜', color: '#FFE3D5', is_active: true }],
+            error: null,
+          })
         ),
       })),
     })),
@@ -78,6 +81,11 @@ describe('TransactionFormModal', () => {
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
       await user.click(screen.getByRole('button', { name: '入帳' }))
       expect(screen.queryByText('共同帳戶')).not.toBeInTheDocument()
+    })
+
+    it('分類 chip 顯示 emoji', async () => {
+      render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
+      expect(await screen.findByText('🍜')).toBeInTheDocument()
     })
 
     it('點擊取消按鈕呼叫 onClose', async () => {

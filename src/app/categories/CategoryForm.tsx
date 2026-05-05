@@ -71,7 +71,8 @@ export default function CategoryForm({
         <input
           value={emoji}
           onChange={e => setEmoji(e.target.value)}
-          maxLength={2}
+          onFocus={e => e.target.select()}
+          maxLength={8}
           placeholder="😀"
           style={{
             width: 44,

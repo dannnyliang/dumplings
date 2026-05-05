@@ -251,7 +251,7 @@ export default function TransactionFormModal({
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      <CategoryAvatar categoryName={c.name} size={36} />
+                      <CategoryAvatar emoji={c.emoji} color={c.color} size={36} />
                       <span style={{ fontSize: 11, fontWeight: selected ? 600 : 400, color: selected ? 'var(--dmp-text)' : 'var(--dmp-text-muted)', whiteSpace: 'nowrap' }}>
                         {c.name}
                       </span>
