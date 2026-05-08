@@ -17,7 +17,7 @@ export default async function Home() {
   const [{ data: transactions }, { data: profilesData }] = await Promise.all([
     supabase
       .from('transactions')
-      .select('*, category:categories(id, name)')
+      .select('*, category:categories(id, name, emoji, color)')
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(100),

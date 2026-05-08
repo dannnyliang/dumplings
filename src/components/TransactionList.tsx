@@ -77,7 +77,8 @@ export default function TransactionList({ transactions, userId, profiles }: Tran
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <CategoryAvatar
-                        categoryName={t.type === 'topup' ? null : (t.category?.name ?? null)}
+                        emoji={t.type === 'topup' ? '💵' : (t.category?.emoji ?? null)}
+                        color={t.type === 'topup' ? null : (t.category?.color ?? null)}
                         size={40}
                       />
                       <div>
