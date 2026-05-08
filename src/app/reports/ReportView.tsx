@@ -3,10 +3,16 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import dynamic from 'next/dynamic'
 import Icon from '@/components/ui/Icon'
-import { WARM_CHART_COLORS } from '@/lib/tokens'
 import type { Transaction } from '@/types/database'
+
+const ChartIsland = dynamic(() => import('./ChartIsland'), {
+  ssr: false,
+  loading: () => (
+    <div className="animate-pulse rounded-2xl bg-[var(--dmp-surface-alt)]" style={{ height: 280 }} />
+  ),
+})
 
 interface ReportViewProps {
   transactions: Transaction[]
@@ -106,39 +112,8 @@ export default function ReportView({ transactions, selectedMonth }: ReportViewPr
           </div>
         </div>
 
-        {/* pie chart */}
-        {pieData.length > 0 && (
-          <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: '16px', boxShadow: 'var(--dmp-shadow-soft)' }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--dmp-text-soft)', margin: '0 0 12px' }}>支出分類</p>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={52} outerRadius={82} paddingAngle={2} dataKey="value">
-                  {pieData.map((_, index) => (
-                    <Cell key={index} fill={WARM_CHART_COLORS[index % WARM_CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => [`NT$ ${Number(value).toLocaleString('zh-TW')}`, '金額']}
-                  contentStyle={{ backgroundColor: 'var(--dmp-surface)', border: '1px solid var(--dmp-border)', borderRadius: 12, fontSize: 13 }} />
-              </PieChart>
-            </ResponsiveContainer>
-            <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {pieData.map((item, i) => (
-                <li key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 3, flexShrink: 0, backgroundColor: WARM_CHART_COLORS[i % WARM_CHART_COLORS.length], display: 'inline-block' }} />
-                    <span style={{ fontSize: 13, color: 'var(--dmp-text)' }}>{item.name}</span>
-                  </div>
-                  <span style={{ fontSize: 13, color: 'var(--dmp-text-soft)', fontFamily: '"SF Mono", ui-monospace, monospace' }}>
-                    NT$ {item.value.toLocaleString('zh-TW')}
-                    <span style={{ color: 'var(--dmp-text-muted)', marginLeft: 6, fontSize: 11 }}>
-                      ({totalExpense > 0 ? Math.round((item.value / totalExpense) * 100) : 0}%)
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {/* pie chart (lazy-loaded recharts island) */}
+        <ChartIsland pieData={pieData} totalExpense={totalExpense} />
 
         {/* search */}
         <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, boxShadow: 'var(--dmp-shadow-soft)' }}>
