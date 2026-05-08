@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
@@ -12,20 +13,57 @@ const NAV_ITEMS = [
   { href: '/recurring', label: '定期', icon: 'repeat' as const },
 ]
 
+const PREFETCH_PATHS = NAV_ITEMS.map((i) => i.href)
+
+function tryHaptic(): void {
+  if (typeof navigator === 'undefined') return
+  if (typeof navigator.vibrate === 'function') navigator.vibrate(8)
+}
+
 export default function BottomNav() {
   const pathname = usePathname()
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isPending) setPendingHref(null)
+  }, [isPending])
+
+  useEffect(() => {
+    if (!router?.prefetch) return
+    PREFETCH_PATHS.forEach((p) => {
+      try { router.prefetch(p) } catch { /* prefetch is best-effort */ }
+    })
+  }, [router])
 
   if (pathname === '/login') return null
 
-  const isHome = pathname === '/'
+  const visiblePath = isPending && pendingHref ? pendingHref : pathname
+  const isHome = visiblePath === '/'
 
-  function handleFab() {
+  function handleNav(e: React.MouseEvent, href: string): void {
+    e.preventDefault()
+    if (href === pathname) return
+    tryHaptic()
+    setPendingHref(href)
+    startTransition(() => router.push(href))
+  }
+
+  function handleTouchPrefetch(href: string): void {
+    if (router?.prefetch) {
+      try { router.prefetch(href) } catch { /* best-effort */ }
+    }
+  }
+
+  function handleFab(): void {
     if (isHome) {
       window.dispatchEvent(new CustomEvent('dmp:open-add'))
-    } else {
-      router.push('/')
+      return
     }
+    tryHaptic()
+    setPendingHref('/')
+    startTransition(() => router.push('/'))
   }
 
   return (
@@ -54,11 +92,16 @@ export default function BottomNav() {
         }}
       >
         {NAV_ITEMS.slice(0, 2).map((item) => {
-          const isActive = pathname === item.href
+          const isActive = visiblePath === item.href
           return (
             <Link
               key={item.href}
               href={item.href}
+              prefetch
+              className="dmp-nav-link"
+              onClick={(e) => handleNav(e, item.href)}
+              onTouchStart={() => handleTouchPrefetch(item.href)}
+              onMouseEnter={() => handleTouchPrefetch(item.href)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -127,11 +170,16 @@ export default function BottomNav() {
         </div>
 
         {NAV_ITEMS.slice(2).map((item) => {
-          const isActive = pathname === item.href
+          const isActive = visiblePath === item.href
           return (
             <Link
               key={item.href}
               href={item.href}
+              prefetch
+              className="dmp-nav-link"
+              onClick={(e) => handleNav(e, item.href)}
+              onTouchStart={() => handleTouchPrefetch(item.href)}
+              onMouseEnter={() => handleTouchPrefetch(item.href)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',

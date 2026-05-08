@@ -3,14 +3,17 @@ import { render, screen } from '@testing-library/react'
 import BottomNav from '@/components/BottomNav'
 
 const mockUsePathname = vi.fn()
+const mockPrefetch = vi.fn()
+const mockPush = vi.fn()
 
 vi.mock('next/navigation', () => ({
   usePathname: () => mockUsePathname(),
+  useRouter: () => ({ prefetch: mockPrefetch, push: mockPush, refresh: vi.fn(), back: vi.fn(), forward: vi.fn(), replace: vi.fn() }),
 }))
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, style }: { href: string; children: React.ReactNode; style?: React.CSSProperties }) => (
-    <a href={href} style={style}>{children}</a>
+  default: ({ href, children, style, onClick, className }: { href: string; children: React.ReactNode; style?: React.CSSProperties; onClick?: (e: React.MouseEvent) => void; className?: string }) => (
+    <a href={href} style={style} onClick={onClick} className={className}>{children}</a>
   ),
 }))
 

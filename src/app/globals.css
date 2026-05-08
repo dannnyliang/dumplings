@@ -33,6 +33,17 @@ body {
   background-color: var(--dmp-bg);
   color: var(--dmp-text);
   font-family: var(--font-noto, -apple-system), BlinkMacSystemFont, "SF Pro Text", "PingFang TC", system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.dmp-nav-link {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.08s ease, opacity 0.08s ease;
+}
+.dmp-nav-link:active {
+  transform: scale(0.92);
+  opacity: 0.7;
 }
 
 @keyframes dmp-fade-in {
