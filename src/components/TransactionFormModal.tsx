@@ -27,9 +27,12 @@ export default function TransactionFormModal({
   const [categoryId, setCategoryId] = useState<string>(transaction?.category_id ?? '')
   const [date, setDate] = useState(transaction?.date ?? TODAY)
   const [note, setNote] = useState(transaction?.note ?? '')
-  const [paidBy, setPaidBy] = useState<'shared' | 'self'>(
-    transaction && transaction.paid_by !== 'shared' ? 'self' : 'shared'
-  )
+  const [paidBy, setPaidBy] = useState<'shared' | 'self' | 'credit_card'>(() => {
+    if (!transaction) return 'shared'
+    if (transaction.paid_by === 'shared') return 'shared'
+    if (transaction.paid_by === 'credit_card') return 'credit_card'
+    return 'self'
+  })
   const [categories, setCategories] = useState<Category[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,7 +73,11 @@ export default function TransactionFormModal({
       category_id: type === 'expense' ? categoryId || null : null,
       date,
       note: note.trim() || null,
-      paid_by: type === 'expense' && paidBy === 'self' ? userId : 'shared',
+      paid_by: type === 'expense'
+        ? paidBy === 'self' ? userId
+        : paidBy === 'credit_card' ? 'credit_card'
+        : 'shared'
+        : 'shared',
     }
 
     if (isEdit && transaction) {
@@ -279,7 +286,7 @@ export default function TransactionFormModal({
           {/* paid_by (expense only) */}
           {type === 'expense' && (
             <div style={{ display: 'flex', backgroundColor: 'var(--dmp-surface-alt)', borderRadius: 14, padding: 3, gap: 3 }}>
-              {(['shared', 'self'] as const).map((p) => (
+              {(['shared', 'self', 'credit_card'] as const).map((p) => (
                 <button
                   key={p}
                   type="button"
@@ -292,7 +299,7 @@ export default function TransactionFormModal({
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  {p === 'shared' ? '共同帳戶' : '我先墊付'}
+                  {p === 'shared' ? '共同帳戶' : p === 'self' ? '我先墊付' : '信用卡'}
                 </button>
               ))}
             </div>

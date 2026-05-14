@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import TransactionFormModal from './TransactionFormModal'
 import CategoryAvatar from '@/components/ui/CategoryAvatar'
+import { isPaidByCreditCard } from '@/lib/paidBy'
 import type { Transaction } from '@/types/database'
 
 interface TransactionListProps {
@@ -60,7 +61,9 @@ export default function TransactionList({ transactions, userId, profiles }: Tran
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {items.map((t, idx) => {
                 const isAdvance = t.type === 'expense' && t.paid_by !== 'shared'
-                const payerName = isAdvance ? (profiles[t.paid_by] ?? '某人') : ''
+                const payerName = isAdvance
+                  ? isPaidByCreditCard(t.paid_by) ? '信用卡' : (profiles[t.paid_by] ?? '某人')
+                  : ''
 
                 return (
                   <li

@@ -76,11 +76,17 @@ describe('TransactionFormModal', () => {
       expect(screen.queryByText('刪除這筆記錄')).not.toBeInTheDocument()
     })
 
+    it('支出模式顯示「信用卡」選項', () => {
+      render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
+      expect(screen.getByRole('button', { name: '信用卡' })).toBeInTheDocument()
+    })
+
     it('切換到入帳後付款方式選項消失', async () => {
       const user = userEvent.setup()
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
       await user.click(screen.getByRole('button', { name: '入帳' }))
       expect(screen.queryByText('共同帳戶')).not.toBeInTheDocument()
+      expect(screen.queryByText('信用卡')).not.toBeInTheDocument()
     })
 
     it('分類 chip 顯示 emoji', async () => {
@@ -143,6 +149,16 @@ describe('TransactionFormModal', () => {
     it('填入有效金額送出後呼叫 onClose', async () => {
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
       fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '300' } })
+      const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
+      fireEvent.click(ctaBtn)
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+    })
+
+    it('選擇信用卡後送出呼叫 onClose', async () => {
+      const user = userEvent.setup()
+      render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
+      fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '500' } })
+      await user.click(screen.getByRole('button', { name: '信用卡' }))
       const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
       fireEvent.click(ctaBtn)
       await vi.waitFor(() => expect(onClose).toHaveBeenCalled())

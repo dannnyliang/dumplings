@@ -24,6 +24,7 @@ export interface Transaction {
   category_id: string | null
   date: string
   note: string | null
+  /** user UUID | 'shared' | 'credit_card' */
   paid_by: string
   is_reimbursed: boolean
   reimbursed_at: string | null
@@ -39,6 +40,7 @@ export interface NewTransaction {
   category_id: string | null
   date: string
   note: string | null
+  /** user UUID | 'shared' | 'credit_card' */
   paid_by: string
 }
 

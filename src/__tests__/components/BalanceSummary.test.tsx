@@ -102,6 +102,22 @@ describe('BalanceSummary', () => {
       expect(screen.getByText(/Danny 墊付了/)).toBeInTheDocument()
       expect(screen.getByText(/PeiYu 墊付了/)).toBeInTheDocument()
     })
+
+    it('信用卡未還清時顯示「信用卡 墊付了」', () => {
+      const txns = [makeTransaction({ type: 'expense', amount: 1200, paid_by: 'credit_card' })]
+      render(<BalanceSummary transactions={txns} profiles={PROFILES} />)
+      expect(screen.getByText(/信用卡 墊付了/)).toBeInTheDocument()
+      expect(screen.getByText(/1,200/)).toBeInTheDocument()
+    })
+
+    it('信用卡已還清後不顯示未還款', () => {
+      const txns = [makeTransaction({
+        type: 'expense', amount: 1200, paid_by: 'credit_card',
+        is_reimbursed: true, reimbursed_at: '2026-04-02T00:00:00Z',
+      })]
+      render(<BalanceSummary transactions={txns} profiles={PROFILES} />)
+      expect(screen.queryByText(/信用卡 墊付了/)).not.toBeInTheDocument()
+    })
   })
 
   describe('入帳與支出摘要', () => {

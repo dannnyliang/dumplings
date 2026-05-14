@@ -137,6 +137,18 @@ describe('TransactionList', () => {
       render(<TransactionList transactions={txns} userId="uid-danny" profiles={PROFILES} />)
       expect(screen.queryByText(/墊付/)).not.toBeInTheDocument()
     })
+
+    it('信用卡代墊顯示「信用卡」標籤', () => {
+      const txns = [makeTxn({ paid_by: 'credit_card', is_reimbursed: false })]
+      render(<TransactionList transactions={txns} userId="uid-danny" profiles={PROFILES} />)
+      expect(screen.getByText(/信用卡 墊付/)).toBeInTheDocument()
+    })
+
+    it('信用卡已還清顯示「信用卡 已還清」', () => {
+      const txns = [makeTxn({ paid_by: 'credit_card', is_reimbursed: true, reimbursed_at: '2026-04-02T00:00:00Z' })]
+      render(<TransactionList transactions={txns} userId="uid-danny" profiles={PROFILES} />)
+      expect(screen.getByText(/信用卡 已還清/)).toBeInTheDocument()
+    })
   })
 
   describe('點擊行為', () => {

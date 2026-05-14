@@ -1,3 +1,4 @@
+import { isPaidByCreditCard } from '@/lib/paidBy'
 import type { Transaction } from '@/types/database'
 
 interface BalanceSummaryProps {
@@ -101,7 +102,7 @@ export default function BalanceSummary({ transactions, profiles }: BalanceSummar
         <div style={{ borderTop: '1px solid var(--dmp-border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
           {Object.entries(advancesByPayer).map(([payerId, total]) => (
             <p key={payerId} style={{ fontSize: 12, color: 'var(--dmp-accent)', fontWeight: 500 }}>
-              {profiles[payerId] ?? '某人'} 墊付了 NT$ {total.toLocaleString('zh-TW')}，尚未還清
+              {isPaidByCreditCard(payerId) ? '信用卡' : (profiles[payerId] ?? '某人')} 墊付了 NT$ {total.toLocaleString('zh-TW')}，尚未還清
             </p>
           ))}
         </div>
