@@ -26,6 +26,26 @@ npx vitest run src/components/__tests__/BalanceSummary.test.tsx
 
 This is a couples expense-tracking PWA for Danny + PeiYu. All data is per-household (shared via Supabase RLS, not per-user isolated).
 
+### 架構規範（MUST follow — enforced by ESLint, see docs/adr/0001）
+
+領域詞彙以根目錄 `CONTEXT.md` 為準；架構決策記錄在 `docs/adr/`。
+
+**分層規則：每條領域規則只有一個家。**
+
+| 層 | 位置 | 職責 |
+|----|------|------|
+| 領域模組 | `src/lib/*.ts` | 純函式 + 具名型別：`paidBy`（paid_by 三值契約唯一解讀點）、`balance`（結餘/代墊規則）、`report`（月報彙總）、`month`（YYYY-MM 契約、本地時區日期）、`money`（金額格式）、`tokens`（調色盤） |
+| 資料存取 | `src/lib/repos/*.ts` | 每張資料表一個模組；select 形狀只有一份；mutation 以意圖命名；函式接受 `SupabaseClient` 參數（server/client 共用） |
+| 元件/頁面 | `src/app/`、`src/components/` | 只做呈現與互動狀態，消費上面兩層 |
+
+**元件與頁面內禁止**（ESLint `no-restricted-syntax` 會擋）：
+- 直接 `supabase.from('...')` 查資料表 → 用 `src/lib/repos`
+- 比對 `'shared'` / `'credit_card'` 字面值 → 用 `@/lib/paidBy` helpers
+- `toLocaleString` 手刻金額 → 用 `formatMoney` / `formatSignedMoney`
+- 手刻月份/日期字串運算 → 用 `@/lib/month`
+
+**新增衍生概念時**：先在 `src/lib/` 寫測試與純函式（TDD），元件再消費；不要把規則 inline 在元件裡。
+
 ### Route Structure
 
 | Route | Type | Purpose |
