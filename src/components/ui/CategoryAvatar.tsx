@@ -1,4 +1,4 @@
-import { CATEGORY_PALETTE, FALLBACK_CATEGORY } from '@/lib/tokens'
+import { CATEGORY_PALETTE, FALLBACK_CATEGORY, paletteForCategoryName } from '@/lib/tokens'
 
 interface CategoryAvatarProps {
   categoryName?: string | null
@@ -7,10 +7,10 @@ interface CategoryAvatarProps {
   size?: number
 }
 
-export default function CategoryAvatar({ emoji, color, size = 40 }: CategoryAvatarProps) {
+export default function CategoryAvatar({ categoryName, emoji, color, size = 40 }: CategoryAvatarProps) {
   const colors = color
     ? (CATEGORY_PALETTE.find(p => p.bg === color) ?? FALLBACK_CATEGORY)
-    : FALLBACK_CATEGORY
+    : paletteForCategoryName(categoryName)
   const radius = Math.round(size * 0.25)
   const fontSize = Math.round(size * 0.46)
 

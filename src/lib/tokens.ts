@@ -11,6 +11,13 @@ export const CATEGORY_PALETTE: Array<{ bg: string; fg: string }> = [
   { bg: '#F0E8D4', fg: '#7A6040' },
 ]
 
+/** 分類未指定顏色時，依名稱決定一個穩定的調色盤項目（「自動（依名稱）」）。 */
+export function paletteForCategoryName(name: string | null | undefined): { bg: string; fg: string } {
+  if (!name) return FALLBACK_CATEGORY
+  const hash = [...name].reduce((acc, ch) => acc + (ch.codePointAt(0) ?? 0), 0)
+  return CATEGORY_PALETTE[hash % CATEGORY_PALETTE.length]
+}
+
 export const WARM_CHART_COLORS = [
   '#B8562B', '#D4A574', '#A88C6B', '#7A6A54', '#B38968', '#C89B7B', '#8B7860',
 ]
