@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import TransactionFormModal from './TransactionFormModal'
 import CategoryAvatar from '@/components/ui/CategoryAvatar'
-import { isPaidByCreditCard } from '@/lib/paidBy'
+import { isAdvance } from '@/lib/balance'
+import { formatSignedMoney } from '@/lib/money'
+import { formatDayLabel } from '@/lib/month'
+import { payerLabel } from '@/lib/paidBy'
+import { setTransactionReimbursed } from '@/lib/repos/transactions'
 import type { Transaction } from '@/types/database'
 
 interface TransactionListProps {
@@ -14,23 +18,13 @@ interface TransactionListProps {
   profiles: Record<string, string>
 }
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00')
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  return `${month}/${day}`
-}
-
 export default function TransactionList({ transactions, userId, profiles }: TransactionListProps) {
   const router = useRouter()
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
 
   async function markReimbursed(transaction: Transaction) {
     const supabase = createClient()
-    await supabase
-      .from('transactions')
-      .update({ is_reimbursed: true, reimbursed_at: new Date().toISOString() })
-      .eq('id', transaction.id)
+    await setTransactionReimbursed(supabase, transaction.id, true)
     router.refresh()
   }
 
@@ -55,15 +49,13 @@ export default function TransactionList({ transactions, userId, profiles }: Tran
           <div key={date} style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 24, overflow: 'hidden', boxShadow: 'var(--dmp-shadow-soft)' }}>
             <div style={{ padding: '8px 16px', backgroundColor: 'var(--dmp-surface-alt)', borderBottom: '1px solid var(--dmp-border)' }}>
               <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--dmp-text-muted)', fontFamily: '"SF Mono", ui-monospace, monospace', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                {formatDate(date)}
+                {formatDayLabel(date)}
               </span>
             </div>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {items.map((t, idx) => {
-                const isAdvance = t.type === 'expense' && t.paid_by !== 'shared'
-                const payerName = isAdvance
-                  ? isPaidByCreditCard(t.paid_by) ? '信用卡' : (profiles[t.paid_by] ?? '某人')
-                  : ''
+                const advance = isAdvance(t)
+                const payerName = advance ? payerLabel(t.paid_by, profiles) : ''
 
                 return (
                   <li
@@ -95,9 +87,9 @@ export default function TransactionList({ transactions, userId, profiles }: Tran
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: t.type === 'topup' ? 'var(--dmp-income)' : 'var(--dmp-expense)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
-                        {t.type === 'topup' ? '+' : '-'}NT$ {Number(t.amount).toLocaleString('zh-TW')}
+                        {formatSignedMoney(t.amount, t.type)}
                       </p>
-                      {isAdvance && (
+                      {advance && (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 2 }}>
                           {t.is_reimbursed ? (
                             <span style={{ fontSize: 11, color: 'var(--dmp-text-muted)' }}>✓ {payerName} 已還清</span>

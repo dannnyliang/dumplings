@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { createCategory, deleteCategory as deleteCategoryRow, updateCategory } from '@/lib/repos/categories'
 import CategoryAvatar from '@/components/ui/CategoryAvatar'
 import Toggle from '@/components/ui/Toggle'
 import Icon from '@/components/ui/Icon'
@@ -33,11 +34,12 @@ export default function CategoryManager({ initialCategories }: CategoryManagerPr
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('請重新登入'); return }
 
-    const { data: inserted, error: insertError } = await supabase
-      .from('categories')
-      .insert({ name: data.name, emoji: data.emoji, color: data.color, created_by: user.id })
-      .select()
-      .single()
+    const { data: inserted, error: insertError } = await createCategory(supabase, {
+      name: data.name,
+      emoji: data.emoji,
+      color: data.color,
+      created_by: user.id,
+    })
 
     if (insertError || !inserted) {
       setError('新增失敗')
@@ -50,10 +52,11 @@ export default function CategoryManager({ initialCategories }: CategoryManagerPr
   async function handleEdit(category: Category, data: CategoryFormData) {
     setError(null)
     const supabase = createClient()
-    const { error: updateError } = await supabase
-      .from('categories')
-      .update({ name: data.name, emoji: data.emoji, color: data.color })
-      .eq('id', category.id)
+    const { error: updateError } = await updateCategory(supabase, category.id, {
+      name: data.name,
+      emoji: data.emoji,
+      color: data.color,
+    })
 
     if (updateError) { setError('更新失敗'); return }
     setCategories(prev =>
@@ -65,10 +68,9 @@ export default function CategoryManager({ initialCategories }: CategoryManagerPr
 
   async function toggleActive(category: Category) {
     const supabase = createClient()
-    const { error: updateError } = await supabase
-      .from('categories')
-      .update({ is_active: !category.is_active })
-      .eq('id', category.id)
+    const { error: updateError } = await updateCategory(supabase, category.id, {
+      is_active: !category.is_active,
+    })
 
     if (updateError) { setError('更新失敗'); return }
     setCategories(prev =>
@@ -80,10 +82,7 @@ export default function CategoryManager({ initialCategories }: CategoryManagerPr
   async function deleteCategory(category: Category) {
     if (!confirm(`確定要刪除「${category.name}」？`)) return
     const supabase = createClient()
-    const { error: deleteError } = await supabase
-      .from('categories')
-      .delete()
-      .eq('id', category.id)
+    const { error: deleteError } = await deleteCategoryRow(supabase, category.id)
 
     if (deleteError) { setError('刪除失敗（此分類可能仍有交易紀錄）'); return }
     setCategories(prev => prev.filter(c => c.id !== category.id))

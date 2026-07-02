@@ -4,6 +4,21 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CategoryAvatar from '@/components/ui/CategoryAvatar'
+import { todayISO } from '@/lib/month'
+import {
+  PAYER_FORM_LABELS,
+  formKindFromPaidBy,
+  isPaidByShared,
+  paidByForTransaction,
+  type PayerFormKind,
+} from '@/lib/paidBy'
+import { listActiveCategories } from '@/lib/repos/categories'
+import {
+  createTransaction,
+  deleteTransaction,
+  setTransactionReimbursed,
+  updateTransaction,
+} from '@/lib/repos/transactions'
 import type { Category, Transaction } from '@/types/database'
 
 interface TransactionFormModalProps {
@@ -12,7 +27,7 @@ interface TransactionFormModalProps {
   onClose: () => void
 }
 
-const TODAY = new Date().toISOString().split('T')[0]
+const TODAY = todayISO()
 
 export default function TransactionFormModal({
   userId,
@@ -27,12 +42,9 @@ export default function TransactionFormModal({
   const [categoryId, setCategoryId] = useState<string>(transaction?.category_id ?? '')
   const [date, setDate] = useState(transaction?.date ?? TODAY)
   const [note, setNote] = useState(transaction?.note ?? '')
-  const [paidBy, setPaidBy] = useState<'shared' | 'self' | 'credit_card'>(() => {
-    if (!transaction) return 'shared'
-    if (transaction.paid_by === 'shared') return 'shared'
-    if (transaction.paid_by === 'credit_card') return 'credit_card'
-    return 'self'
-  })
+  const [paidBy, setPaidBy] = useState<PayerFormKind>(() =>
+    transaction ? formKindFromPaidBy(transaction.paid_by) : 'shared'
+  )
   const [categories, setCategories] = useState<Category[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -41,17 +53,12 @@ export default function TransactionFormModal({
 
   useEffect(() => {
     const supabase = createClient()
-    supabase
-      .from('categories')
-      .select('*')
-      .eq('is_active', true)
-      .order('name')
-      .then(({ data }) => {
-        if (data) {
-          setCategories(data)
-          if (!transaction?.category_id && data[0]) setCategoryId(data[0].id)
-        }
-      })
+    listActiveCategories(supabase).then(({ data }) => {
+      if (data) {
+        setCategories(data)
+        if (!transaction?.category_id && data[0]) setCategoryId(data[0].id)
+      }
+    })
   }, [transaction?.category_id])
 
   const canSave = !!amount && parseFloat(amount) > 0
@@ -73,18 +80,11 @@ export default function TransactionFormModal({
       category_id: type === 'expense' ? categoryId || null : null,
       date,
       note: note.trim() || null,
-      paid_by: type === 'expense'
-        ? paidBy === 'self' ? userId
-        : paidBy === 'credit_card' ? 'credit_card'
-        : 'shared'
-        : 'shared',
+      paid_by: paidByForTransaction(type, paidBy, userId),
     }
 
     if (isEdit && transaction) {
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update(payload)
-        .eq('id', transaction.id)
+      const { error: updateError } = await updateTransaction(supabase, transaction.id, payload)
 
       if (updateError) {
         setError('儲存失敗，請再試一次')
@@ -92,9 +92,10 @@ export default function TransactionFormModal({
         return
       }
     } else {
-      const { error: insertError } = await supabase
-        .from('transactions')
-        .insert({ ...payload, created_by: userId })
+      const { error: insertError } = await createTransaction(supabase, {
+        ...payload,
+        created_by: userId,
+      })
 
       if (insertError) {
         setError('新增失敗，請再試一次')
@@ -111,10 +112,7 @@ export default function TransactionFormModal({
     if (!transaction) return
     setSubmitting(true)
     const supabase = createClient()
-    const { error: deleteError } = await supabase
-      .from('transactions')
-      .delete()
-      .eq('id', transaction.id)
+    const { error: deleteError } = await deleteTransaction(supabase, transaction.id)
 
     if (deleteError) {
       setError('刪除失敗')
@@ -130,10 +128,7 @@ export default function TransactionFormModal({
     if (!transaction) return
     setSubmitting(true)
     const supabase = createClient()
-    const { error: updateError } = await supabase
-      .from('transactions')
-      .update({ is_reimbursed: false, reimbursed_at: null })
-      .eq('id', transaction.id)
+    const { error: updateError } = await setTransactionReimbursed(supabase, transaction.id, false)
 
     if (updateError) {
       setError('還原失敗，請再試一次')
@@ -299,7 +294,7 @@ export default function TransactionFormModal({
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  {p === 'shared' ? '共同帳戶' : p === 'self' ? '我先墊付' : '信用卡'}
+                  {PAYER_FORM_LABELS[p]}
                 </button>
               ))}
             </div>
@@ -338,7 +333,7 @@ export default function TransactionFormModal({
           </button>
 
           {/* unreimburse (edit only, advance payment already settled) */}
-          {isEdit && transaction?.is_reimbursed && transaction?.paid_by !== 'shared' && (
+          {isEdit && transaction?.is_reimbursed && !isPaidByShared(transaction.paid_by) && (
             <button
               type="button"
               onClick={handleUnreimburse}

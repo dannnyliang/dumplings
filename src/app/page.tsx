@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { getProfileNameMap } from '@/lib/repos/profiles'
+import { listRecentTransactions } from '@/lib/repos/transactions'
 import TransactionList from '@/components/TransactionList'
 import BalanceSummary from '@/components/BalanceSummary'
 import AddTransactionButton from '@/components/AddTransactionButton'
@@ -14,19 +16,10 @@ export default async function Home() {
     redirect('/login')
   }
 
-  const [{ data: transactions }, { data: profilesData }] = await Promise.all([
-    supabase
-      .from('transactions')
-      .select('*, category:categories(id, name, emoji, color)')
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(100),
-    supabase.from('profiles').select('id, display_name'),
+  const [{ data: transactions }, profiles] = await Promise.all([
+    listRecentTransactions(supabase),
+    getProfileNameMap(supabase),
   ])
-
-  const profiles: Record<string, string> = Object.fromEntries(
-    (profilesData ?? []).map((p) => [p.id, p.display_name])
-  )
 
   return (
     <main style={{ minHeight: '100dvh', backgroundColor: 'var(--dmp-bg)', paddingBottom: 100 }}>

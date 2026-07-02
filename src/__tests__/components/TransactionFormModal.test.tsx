@@ -5,6 +5,10 @@ import TransactionFormModal from '@/components/TransactionFormModal'
 import type { Transaction } from '@/types/database'
 
 const mockRefresh = vi.fn()
+const mockInsert = vi.fn(() => Promise.resolve({ error: null }))
+const mockUpdate = vi.fn(() => ({
+  eq: vi.fn(() => Promise.resolve({ error: null })),
+}))
 const mockSupabase = {
   from: vi.fn(() => ({
     select: vi.fn(() => ({
@@ -17,10 +21,8 @@ const mockSupabase = {
         ),
       })),
     })),
-    insert: vi.fn(() => Promise.resolve({ error: null })),
-    update: vi.fn(() => ({
-      eq: vi.fn(() => Promise.resolve({ error: null })),
-    })),
+    insert: mockInsert,
+    update: mockUpdate,
     delete: vi.fn(() => ({
       eq: vi.fn(() => Promise.resolve({ error: null })),
     })),
@@ -154,7 +156,18 @@ describe('TransactionFormModal', () => {
       await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
     })
 
-    it('選擇信用卡後送出呼叫 onClose', async () => {
+    it('預設以共同帳戶送出，paid_by 為 shared', async () => {
+      render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
+      fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '300' } })
+      const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
+      fireEvent.click(ctaBtn)
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 300, paid_by: 'shared', created_by: 'uid-danny' })
+      )
+    })
+
+    it('選擇信用卡後送出，paid_by 為 credit_card', async () => {
       const user = userEvent.setup()
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
       fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '500' } })
@@ -162,6 +175,35 @@ describe('TransactionFormModal', () => {
       const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
       fireEvent.click(ctaBtn)
       await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 500, paid_by: 'credit_card' })
+      )
+    })
+
+    it('選擇我先墊付後送出，paid_by 為使用者 id', async () => {
+      const user = userEvent.setup()
+      render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
+      fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '500' } })
+      await user.click(screen.getByRole('button', { name: '我先墊付' }))
+      const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
+      fireEvent.click(ctaBtn)
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({ paid_by: 'uid-danny' })
+      )
+    })
+
+    it('入帳送出時 paid_by 固定為 shared', async () => {
+      const user = userEvent.setup()
+      render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
+      await user.click(screen.getByRole('button', { name: '入帳' }))
+      fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '10000' } })
+      const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
+      fireEvent.click(ctaBtn)
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'topup', paid_by: 'shared', category_id: null })
+      )
     })
   })
 

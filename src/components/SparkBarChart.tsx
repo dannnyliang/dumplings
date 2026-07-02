@@ -1,16 +1,14 @@
+import { lastNDays } from '@/lib/month'
 import type { Transaction } from '@/types/database'
 
 interface SparkBarChartProps {
   transactions: Transaction[]
 }
 
+const SPARK_DAYS = 14
+
 export default function SparkBarChart({ transactions }: SparkBarChartProps) {
-  const today = new Date()
-  const days = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(today.getDate() - 13 + i)
-    return d.toISOString().split('T')[0]
-  })
+  const days = lastNDays(SPARK_DAYS)
 
   const maxAmount = Math.max(
     1,

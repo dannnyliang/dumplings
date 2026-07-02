@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { listActiveCategories } from '@/lib/repos/categories'
+import { listActiveRecurring } from '@/lib/repos/recurring'
 import RecurringManager from './RecurringManager'
 
 export default async function RecurringPage() {
@@ -8,16 +10,8 @@ export default async function RecurringPage() {
   if (!user) redirect('/login')
 
   const [{ data: recurring }, { data: categories }] = await Promise.all([
-    supabase
-      .from('recurring_transactions')
-      .select('*, category:categories(id, name)')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('categories')
-      .select('id, name')
-      .eq('is_active', true)
-      .order('name'),
+    listActiveRecurring(supabase),
+    listActiveCategories(supabase),
   ])
 
   return (

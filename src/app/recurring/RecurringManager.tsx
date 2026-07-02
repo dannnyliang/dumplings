@@ -6,6 +6,11 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import CategoryAvatar from '@/components/ui/CategoryAvatar'
 import Icon from '@/components/ui/Icon'
+import { formatMoney, formatSignedMoney } from '@/lib/money'
+import { todayISO } from '@/lib/month'
+import { paidByForTransaction } from '@/lib/paidBy'
+import { createRecurring, deactivateRecurring } from '@/lib/repos/recurring'
+import { createTransaction } from '@/lib/repos/transactions'
 import type { Category, RecurringTransaction } from '@/types/database'
 
 interface RecurringManagerProps {
@@ -14,7 +19,7 @@ interface RecurringManagerProps {
   userId: string
 }
 
-const TODAY = new Date().toISOString().split('T')[0]
+const TODAY = todayISO()
 
 const FREQ_LABEL: Record<string, string> = {
   monthly: '每月',
@@ -46,20 +51,16 @@ export default function RecurringManager({ initialRecurring, categories, userId 
     setError(null)
     const supabase = createClient()
 
-    const { data, error: insertError } = await supabase
-      .from('recurring_transactions')
-      .insert({
-        amount: parsedAmount,
-        type,
-        category_id: type === 'expense' ? categoryId || null : null,
-        note: note.trim() || null,
-        paid_by: type === 'expense' && paidBy === 'self' ? userId : 'shared',
-        frequency,
-        day_of_month: frequency === 'monthly' ? Number(dayOfMonth) : null,
-        created_by: userId,
-      })
-      .select('*, category:categories(id, name)')
-      .single()
+    const { data, error: insertError } = await createRecurring(supabase, {
+      amount: parsedAmount,
+      type,
+      category_id: type === 'expense' ? categoryId || null : null,
+      note: note.trim() || null,
+      paid_by: paidByForTransaction(type, paidBy, userId),
+      frequency,
+      day_of_month: frequency === 'monthly' ? Number(dayOfMonth) : null,
+      created_by: userId,
+    })
 
     if (insertError || !data) {
       setError('新增失敗')
@@ -75,17 +76,15 @@ export default function RecurringManager({ initialRecurring, categories, userId 
   async function triggerNow(item: RecurringTransaction) {
     setTriggering(item.id)
     const supabase = createClient()
-    const { error: insertError } = await supabase
-      .from('transactions')
-      .insert({
-        amount: item.amount,
-        type: item.type,
-        category_id: item.category_id,
-        date: TODAY,
-        note: item.note,
-        paid_by: item.paid_by,
-        created_by: userId,
-      })
+    const { error: insertError } = await createTransaction(supabase, {
+      amount: item.amount,
+      type: item.type,
+      category_id: item.category_id,
+      date: TODAY,
+      note: item.note,
+      paid_by: item.paid_by,
+      created_by: userId,
+    })
 
     if (insertError) {
       setError('記帳失敗')
@@ -98,10 +97,7 @@ export default function RecurringManager({ initialRecurring, categories, userId 
   async function deactivate(item: RecurringTransaction) {
     if (!confirm(`確定要停用「${item.category?.name ?? '此定期'}」？`)) return
     const supabase = createClient()
-    await supabase
-      .from('recurring_transactions')
-      .update({ is_active: false })
-      .eq('id', item.id)
+    await deactivateRecurring(supabase, item.id)
     setRecurring((prev) => prev.filter((r) => r.id !== item.id))
   }
 
@@ -162,7 +158,7 @@ export default function RecurringManager({ initialRecurring, categories, userId 
           <div style={{ backgroundColor: 'var(--dmp-accent-soft)', borderRadius: 20, padding: '14px 18px', boxShadow: 'var(--dmp-shadow-soft)' }}>
             <p style={{ fontSize: 11, color: 'var(--dmp-accent-text)', fontWeight: 500, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: 0.6 }}>每月固定支出</p>
             <p style={{ fontSize: 28, fontWeight: 700, color: 'var(--dmp-accent-text)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
-              NT$ {monthlyTotal.toLocaleString('zh-TW')}
+              {formatMoney(monthlyTotal)}
             </p>
           </div>
         )}
@@ -260,7 +256,7 @@ export default function RecurringManager({ initialRecurring, categories, userId 
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: item.type === 'topup' ? 'var(--dmp-income)' : 'var(--dmp-expense)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
-                        {item.type === 'topup' ? '+' : '-'}NT$ {Number(item.amount).toLocaleString('zh-TW')}
+                        {formatSignedMoney(item.amount, item.type)}
                       </p>
                       <button onClick={() => deactivate(item)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dmp-text-muted)', display: 'flex', padding: 4 }}

@@ -1,6 +1,7 @@
 'use client'
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { formatMoney } from '@/lib/money'
 import { WARM_CHART_COLORS } from '@/lib/tokens'
 
 interface PieDatum {
@@ -26,7 +27,7 @@ export default function ChartIsland({ pieData, totalExpense }: ChartIslandProps)
               <Cell key={index} fill={WARM_CHART_COLORS[index % WARM_CHART_COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip formatter={(value) => [`NT$ ${Number(value).toLocaleString('zh-TW')}`, '金額']}
+          <Tooltip formatter={(value) => [formatMoney(Number(value)), '金額']}
             contentStyle={{ backgroundColor: 'var(--dmp-surface)', border: '1px solid var(--dmp-border)', borderRadius: 12, fontSize: 13 }} />
         </PieChart>
       </ResponsiveContainer>
@@ -38,7 +39,7 @@ export default function ChartIsland({ pieData, totalExpense }: ChartIslandProps)
               <span style={{ fontSize: 13, color: 'var(--dmp-text)' }}>{item.name}</span>
             </div>
             <span style={{ fontSize: 13, color: 'var(--dmp-text-soft)', fontFamily: '"SF Mono", ui-monospace, monospace' }}>
-              NT$ {item.value.toLocaleString('zh-TW')}
+              {formatMoney(item.value)}
               <span style={{ color: 'var(--dmp-text-muted)', marginLeft: 6, fontSize: 11 }}>
                 ({totalExpense > 0 ? Math.round((item.value / totalExpense) * 100) : 0}%)
               </span>

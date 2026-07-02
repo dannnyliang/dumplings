@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { listAllCategories } from '@/lib/repos/categories'
 import CategoryManager from './CategoryManager'
 
 export default async function CategoriesPage() {
@@ -8,11 +9,7 @@ export default async function CategoriesPage() {
 
   if (!user) redirect('/login')
 
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('*')
-    .order('is_active', { ascending: false })
-    .order('name')
+  const { data: categories } = await listAllCategories(supabase)
 
   return <CategoryManager initialCategories={categories ?? []} />
 }
