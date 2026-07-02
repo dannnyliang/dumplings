@@ -8,7 +8,7 @@ import CategoryAvatar from '@/components/ui/CategoryAvatar'
 import Icon from '@/components/ui/Icon'
 import { formatMoney, formatSignedMoney } from '@/lib/money'
 import { todayISO } from '@/lib/month'
-import { paidByForTransaction } from '@/lib/paidBy'
+import { PAYER_FORM_LABELS, paidByForTransaction } from '@/lib/paidBy'
 import { createRecurring, deactivateRecurring } from '@/lib/repos/recurring'
 import { createTransaction } from '@/lib/repos/transactions'
 import type { Category, RecurringTransaction } from '@/types/database'
@@ -213,7 +213,7 @@ export default function RecurringManager({ initialRecurring, categories, userId 
                     backgroundColor: paidBy === p ? 'var(--dmp-accent-soft)' : 'transparent',
                     color: paidBy === p ? 'var(--dmp-accent-text)' : 'var(--dmp-text-muted)',
                   }}>
-                    {p === 'shared' ? '共同帳戶' : '我先墊付'}
+                    {PAYER_FORM_LABELS[p]}
                   </button>
                 ))}
               </div>
