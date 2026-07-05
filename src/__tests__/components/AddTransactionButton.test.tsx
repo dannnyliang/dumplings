@@ -21,6 +21,13 @@ vi.mock('@/lib/supabase/client', () => ({
   }),
 }))
 
+vi.mock('@/components/TransactionsMutationContext', () => ({
+  useMutateTransactions:
+    () => (_optimistic: unknown, commit: () => Promise<{ error: unknown }>) => {
+      void commit()
+    },
+}))
+
 describe('AddTransactionButton', () => {
   it('預設不顯示 modal', () => {
     render(<AddTransactionButton userId="uid-danny" />)

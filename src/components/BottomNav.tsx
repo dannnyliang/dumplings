@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
 import DumplingMark from '@/components/ui/DumplingMark'
+import { tryHaptic } from '@/lib/haptics'
 
 const NAV_ITEMS = [
   { href: '/', label: '首頁', icon: 'home' as const },
@@ -15,20 +16,13 @@ const NAV_ITEMS = [
 
 const PREFETCH_PATHS = NAV_ITEMS.map((i) => i.href)
 
-function tryHaptic(): void {
-  if (typeof navigator === 'undefined') return
-  if (typeof navigator.vibrate === 'function') navigator.vibrate(8)
-}
-
 export default function BottomNav() {
   const pathname = usePathname()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  // transition 進行中才顯示的目標路徑；結束後 visiblePath 會自動 fallback 回 pathname，
+  // 因此不需要用 effect 手動清除（避免 set-state-in-effect 的 cascading render）。
   const [pendingHref, setPendingHref] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!isPending) setPendingHref(null)
-  }, [isPending])
 
   useEffect(() => {
     if (!router?.prefetch) return

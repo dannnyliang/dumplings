@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CategoryAvatar from '@/components/ui/CategoryAvatar'
+import { useMutateTransactions } from '@/components/TransactionsMutationContext'
 import { todayISO } from '@/lib/month'
 import {
   PAYER_FORM_LABELS,
@@ -34,7 +34,7 @@ export default function TransactionFormModal({
   transaction,
   onClose,
 }: TransactionFormModalProps) {
-  const router = useRouter()
+  const mutate = useMutateTransactions()
   const isEdit = !!transaction
 
   const [type, setType] = useState<'expense' | 'topup'>(transaction?.type ?? 'expense')
@@ -63,7 +63,7 @@ export default function TransactionFormModal({
 
   const canSave = !!amount && parseFloat(amount) > 0
 
-  async function handleSubmit() {
+  function handleSubmit() {
     const parsedAmount = parseFloat(amount)
     if (!parsedAmount || parsedAmount <= 0) {
       setError('請輸入有效金額')
@@ -82,60 +82,54 @@ export default function TransactionFormModal({
       note: note.trim() || null,
       paid_by: paidByForTransaction(type, paidBy, userId),
     }
+    const category = payload.category_id
+      ? categories.find((c) => c.id === payload.category_id)
+      : undefined
 
     if (isEdit && transaction) {
-      const { error: updateError } = await updateTransaction(supabase, transaction.id, payload)
-
-      if (updateError) {
-        setError('儲存失敗，請再試一次')
-        setSubmitting(false)
-        return
-      }
-    } else {
-      const { error: insertError } = await createTransaction(supabase, {
-        ...payload,
-        created_by: userId,
+      const optimistic: Transaction = { ...transaction, ...payload, category }
+      mutate({ kind: 'update', transaction: optimistic }, async () => {
+        const { error } = await updateTransaction(supabase, transaction.id, payload)
+        return { error }
       })
-
-      if (insertError) {
-        setError('新增失敗，請再試一次')
-        setSubmitting(false)
-        return
+    } else {
+      const optimistic: Transaction = {
+        id: crypto.randomUUID(),
+        ...payload,
+        is_reimbursed: false,
+        reimbursed_at: null,
+        created_by: userId,
+        created_at: new Date().toISOString(),
+        category,
       }
+      mutate({ kind: 'create', transaction: optimistic }, async () => {
+        const { error } = await createTransaction(supabase, { ...payload, created_by: userId })
+        return { error }
+      })
     }
 
-    router.refresh()
     onClose()
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!transaction) return
     setSubmitting(true)
     const supabase = createClient()
-    const { error: deleteError } = await deleteTransaction(supabase, transaction.id)
-
-    if (deleteError) {
-      setError('刪除失敗')
-      setSubmitting(false)
-      setConfirmDelete(false)
-      return
-    }
-    router.refresh()
+    mutate({ kind: 'delete', id: transaction.id }, async () => {
+      const { error } = await deleteTransaction(supabase, transaction.id)
+      return { error }
+    })
     onClose()
   }
 
-  async function handleUnreimburse() {
+  function handleUnreimburse() {
     if (!transaction) return
     setSubmitting(true)
     const supabase = createClient()
-    const { error: updateError } = await setTransactionReimbursed(supabase, transaction.id, false)
-
-    if (updateError) {
-      setError('還原失敗，請再試一次')
-      setSubmitting(false)
-      return
-    }
-    router.refresh()
+    mutate({ kind: 'reimburse', id: transaction.id, isReimbursed: false }, async () => {
+      const { error } = await setTransactionReimbursed(supabase, transaction.id, false)
+      return { error }
+    })
     onClose()
   }
 

@@ -40,6 +40,13 @@ vi.mock('@/lib/supabase/client', () => ({
   createClient: () => mockSupabase,
 }))
 
+vi.mock('@/components/TransactionsMutationContext', () => ({
+  useMutateTransactions:
+    () => (_optimistic: unknown, commit: () => Promise<{ error: unknown }>) => {
+      void commit()
+    },
+}))
+
 const BASE_TRANSACTION: Transaction = {
   id: 't1',
   amount: 500,

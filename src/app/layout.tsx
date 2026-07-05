@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Sans_TC } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import ToastHost from "@/components/ui/ToastHost";
 
 const notoSansTC = Noto_Sans_TC({
   variable: "--font-noto",
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <BottomNav />
+        <ToastHost />
       </body>
     </html>
   );

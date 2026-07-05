@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import TransactionFormModal from './TransactionFormModal'
+import { useMutateTransactions } from './TransactionsMutationContext'
 import CategoryAvatar from '@/components/ui/CategoryAvatar'
 import { isAdvance } from '@/lib/balance'
 import { formatSignedMoney } from '@/lib/money'
@@ -19,13 +19,15 @@ interface TransactionListProps {
 }
 
 export default function TransactionList({ transactions, userId, profiles }: TransactionListProps) {
-  const router = useRouter()
+  const mutate = useMutateTransactions()
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
 
-  async function markReimbursed(transaction: Transaction) {
+  function markReimbursed(transaction: Transaction) {
     const supabase = createClient()
-    await setTransactionReimbursed(supabase, transaction.id, true)
-    router.refresh()
+    mutate({ kind: 'reimburse', id: transaction.id, isReimbursed: true }, async () => {
+      const { error } = await setTransactionReimbursed(supabase, transaction.id, true)
+      return { error }
+    })
   }
 
   if (transactions.length === 0) {

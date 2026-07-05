@@ -2,10 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getProfileNameMap } from '@/lib/repos/profiles'
 import { listRecentTransactions } from '@/lib/repos/transactions'
-import TransactionList from '@/components/TransactionList'
-import BalanceSummary from '@/components/BalanceSummary'
-import AddTransactionButton from '@/components/AddTransactionButton'
-import SparkBarChart from '@/components/SparkBarChart'
+import TransactionsBoard from '@/components/TransactionsBoard'
 import DumplingMark from '@/components/ui/DumplingMark'
 
 export default async function Home() {
@@ -45,25 +42,11 @@ export default async function Home() {
         </form>
       </header>
 
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <BalanceSummary transactions={transactions ?? []} profiles={profiles} />
-
-        <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 24, padding: '16px 20px', boxShadow: 'var(--dmp-shadow-soft)' }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--dmp-text-muted)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 }}>
-            近 14 天支出
-          </p>
-          <SparkBarChart transactions={transactions ?? []} />
-        </div>
-
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--dmp-text)' }}>最近交易</span>
-          </div>
-          <TransactionList transactions={transactions ?? []} userId={user.id} profiles={profiles} />
-        </div>
-      </div>
-
-      <AddTransactionButton userId={user.id} />
+      <TransactionsBoard
+        initialTransactions={transactions ?? []}
+        userId={user.id}
+        profiles={profiles}
+      />
     </main>
   )
 }

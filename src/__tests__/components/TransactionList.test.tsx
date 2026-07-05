@@ -30,6 +30,13 @@ vi.mock('@/lib/supabase/client', () => ({
   }),
 }))
 
+vi.mock('@/components/TransactionsMutationContext', () => ({
+  useMutateTransactions:
+    () => (_optimistic: unknown, commit: () => Promise<{ error: unknown }>) => {
+      void commit()
+    },
+}))
+
 const PROFILES = { 'uid-danny': 'Danny', 'uid-peiyu': 'PeiYu' }
 
 function makeTxn(overrides: Partial<Transaction>): Transaction {
