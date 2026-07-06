@@ -28,7 +28,7 @@ const mockSupabase = {
     })),
   })),
   auth: {
-    getUser: vi.fn(() => Promise.resolve({ data: { user: { id: 'uid-danny' } } })),
+    getClaims: vi.fn(() => Promise.resolve({ data: { claims: { sub: 'uid-danny' } }, error: null })),
   },
 }
 
@@ -107,7 +107,8 @@ describe('TransactionFormModal', () => {
       const user = userEvent.setup()
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
       await user.click(screen.getByRole('button', { name: '取消' }))
-      expect(onClose).toHaveBeenCalled()
+      // 關閉會先播退場動畫再卸載，onClose 為延遲呼叫
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
     })
   })
 

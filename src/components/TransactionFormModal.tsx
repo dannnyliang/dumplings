@@ -24,14 +24,20 @@ import type { Category, Transaction } from '@/types/database'
 interface TransactionFormModalProps {
   userId: string
   transaction?: Transaction
+  /** server 端預取的 active categories；提供時 sheet 秒開，未提供則 client 端 fallback 抓取。 */
+  categories?: Category[]
   onClose: () => void
 }
 
 const TODAY = todayISO()
+/** 下滑超過此距離（px）即關閉，否則彈回。 */
+const DISMISS_THRESHOLD = 110
+const CLOSE_ANIM_MS = 240
 
 export default function TransactionFormModal({
   userId,
   transaction,
+  categories: initialCategories,
   onClose,
 }: TransactionFormModalProps) {
   const mutate = useMutateTransactions()
@@ -39,19 +45,73 @@ export default function TransactionFormModal({
 
   const [type, setType] = useState<'expense' | 'topup'>(transaction?.type ?? 'expense')
   const [amount, setAmount] = useState(transaction ? String(transaction.amount) : '')
-  const [categoryId, setCategoryId] = useState<string>(transaction?.category_id ?? '')
+  const [categoryId, setCategoryId] = useState<string>(
+    transaction?.category_id ?? initialCategories?.[0]?.id ?? ''
+  )
   const [date, setDate] = useState(transaction?.date ?? TODAY)
   const [note, setNote] = useState(transaction?.note ?? '')
   const [paidBy, setPaidBy] = useState<PayerFormKind>(() =>
     transaction ? formKindFromPaidBy(transaction.paid_by) : 'shared'
   )
-  const [categories, setCategories] = useState<Category[]>([])
+  const [categories, setCategories] = useState<Category[]>(initialCategories ?? [])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const backdropRef = useRef<HTMLDivElement>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const dragStartYRef = useRef<number | null>(null)
+  const dragOffsetRef = useRef(0)
+  const closingRef = useRef(false)
 
+  // 統一的關閉路徑：播退場動畫（sheet 滑落 + backdrop 淡出）後才真正卸載。
+  function requestClose() {
+    if (closingRef.current) return
+    closingRef.current = true
+    const sheet = sheetRef.current
+    const backdrop = backdropRef.current
+    if (sheet) {
+      sheet.style.transition = `transform ${CLOSE_ANIM_MS}ms cubic-bezier(0.3,0.7,0.3,1)`
+      sheet.style.transform = 'translateY(100%)'
+    }
+    if (backdrop) {
+      backdrop.style.transition = `opacity ${CLOSE_ANIM_MS}ms ease`
+      backdrop.style.opacity = '0'
+    }
+    window.setTimeout(onClose, CLOSE_ANIM_MS)
+  }
+
+  function handleDragStart(e: React.TouchEvent) {
+    if (closingRef.current) return
+    dragStartYRef.current = e.touches[0].clientY
+    dragOffsetRef.current = 0
+    if (sheetRef.current) sheetRef.current.style.transition = 'none'
+  }
+
+  function handleDragMove(e: React.TouchEvent) {
+    if (dragStartYRef.current === null) return
+    const dy = e.touches[0].clientY - dragStartYRef.current
+    dragOffsetRef.current = Math.max(0, dy) // 只允許下滑
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${dragOffsetRef.current}px)`
+  }
+
+  function handleDragEnd() {
+    if (dragStartYRef.current === null) return
+    dragStartYRef.current = null
+    if (dragOffsetRef.current > DISMISS_THRESHOLD) {
+      requestClose()
+      return
+    }
+    // 未達門檻：彈回原位
+    const sheet = sheetRef.current
+    if (sheet) {
+      sheet.style.transition = 'transform 0.3s cubic-bezier(0.3,0.7,0.3,1)'
+      sheet.style.transform = 'translateY(0)'
+    }
+  }
+
+  // server 已預取分類時直接秒開；只有沒帶 categories 才 client fallback 抓取。
   useEffect(() => {
+    if (initialCategories) return
     const supabase = createClient()
     listActiveCategories(supabase).then(({ data }) => {
       if (data) {
@@ -59,7 +119,7 @@ export default function TransactionFormModal({
         if (!transaction?.category_id && data[0]) setCategoryId(data[0].id)
       }
     })
-  }, [transaction?.category_id])
+  }, [transaction?.category_id, initialCategories])
 
   const canSave = !!amount && parseFloat(amount) > 0
 
@@ -108,7 +168,7 @@ export default function TransactionFormModal({
       })
     }
 
-    onClose()
+    requestClose()
   }
 
   function handleDelete() {
@@ -119,7 +179,7 @@ export default function TransactionFormModal({
       const { error } = await deleteTransaction(supabase, transaction.id)
       return { error }
     })
-    onClose()
+    requestClose()
   }
 
   function handleUnreimburse() {
@@ -130,13 +190,13 @@ export default function TransactionFormModal({
       const { error } = await setTransactionReimbursed(supabase, transaction.id, false)
       return { error }
     })
-    onClose()
+    requestClose()
   }
 
   return (
     <div
       ref={backdropRef}
-      onClick={(e) => { if (e.target === backdropRef.current) onClose() }}
+      onClick={(e) => { if (e.target === backdropRef.current) requestClose() }}
       style={{
         position: 'fixed', inset: 0, zIndex: 30,
         backgroundColor: 'rgba(30,20,12,0.4)',
@@ -145,6 +205,7 @@ export default function TransactionFormModal({
       }}
     >
       <div
+        ref={sheetRef}
         style={{
           backgroundColor: 'var(--dmp-bg)',
           borderRadius: '28px 28px 0 0',
@@ -156,6 +217,13 @@ export default function TransactionFormModal({
           overflowY: 'auto',
         }}
       >
+        {/* grabber + header：下滑手勢區（不涵蓋可捲動的表單本體，避免與捲動衝突） */}
+        <div
+          onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove}
+          onTouchEnd={handleDragEnd}
+          style={{ touchAction: 'none' }}
+        >
         {/* grabber */}
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 8 }}>
           <div style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'var(--dmp-border-strong)' }} />
@@ -164,7 +232,7 @@ export default function TransactionFormModal({
         {/* header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 20px 12px' }}>
           <button
-            onClick={onClose}
+            onClick={requestClose}
             style={{ fontSize: 15, color: 'var(--dmp-text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}
           >
             取消
@@ -186,6 +254,8 @@ export default function TransactionFormModal({
             {submitting ? '處理中' : '儲存'}
           </button>
         </div>
+        </div>
+        {/* /grabber + header drag region */}
 
         <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* type segmented */}

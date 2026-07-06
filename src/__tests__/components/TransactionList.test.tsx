@@ -26,7 +26,7 @@ vi.mock('@/lib/supabase/client', () => ({
       })),
       insert: vi.fn(() => Promise.resolve({ error: null })),
     })),
-    auth: { getUser: vi.fn(() => Promise.resolve({ data: { user: { id: 'uid-danny' } } })) },
+    auth: { getClaims: vi.fn(() => Promise.resolve({ data: { claims: { sub: 'uid-danny' } }, error: null })) },
   }),
 }))
 

@@ -10,12 +10,13 @@ import { TransactionsMutationContext, type MutateTransactions } from './Transact
 import { applyTransactionMutation, type TransactionMutation } from '@/lib/transactionsOptimistic'
 import { showToast } from '@/lib/toast'
 import { tryHaptic } from '@/lib/haptics'
-import type { Transaction } from '@/types/database'
+import type { Category, Transaction } from '@/types/database'
 
 interface TransactionsBoardProps {
   initialTransactions: Transaction[]
   userId: string
   profiles: Record<string, string>
+  categories: Category[]
 }
 
 function successMessage(mutation: TransactionMutation): string {
@@ -41,6 +42,7 @@ export default function TransactionsBoard({
   initialTransactions,
   userId,
   profiles,
+  categories,
 }: TransactionsBoardProps) {
   const router = useRouter()
   const [transactions, applyOptimistic] = useOptimistic(
@@ -79,11 +81,11 @@ export default function TransactionsBoard({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--dmp-text)' }}>最近交易</span>
           </div>
-          <TransactionList transactions={transactions} userId={userId} profiles={profiles} />
+          <TransactionList transactions={transactions} userId={userId} profiles={profiles} categories={categories} />
         </div>
       </div>
 
-      <AddTransactionButton userId={userId} />
+      <AddTransactionButton userId={userId} categories={categories} />
     </TransactionsMutationContext.Provider>
   )
 }
