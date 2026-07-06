@@ -1,14 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_TC } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import ToastHost from "@/components/ui/ToastHost";
-
-const notoSansTC = Noto_Sans_TC({
-  variable: "--font-noto",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
+import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 
 export const metadata: Metadata = {
   title: "Dumplings",
@@ -35,11 +29,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-TW" className={`${notoSansTC.variable} h-full antialiased`} style={{ colorScheme: 'light' }}>
+    <html lang="zh-TW" className="h-full antialiased" style={{ colorScheme: 'light' }}>
       <body className="min-h-full flex flex-col">
         {children}
         <BottomNav />
         <ToastHost />
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );
