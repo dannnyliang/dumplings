@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getUserId } from '@/lib/supabase/auth'
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -25,12 +26,12 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const userId = await getUserId(supabase)
 
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
   const isPublicPath = isAuthPage || request.nextUrl.pathname.startsWith('/auth')
 
-  if (!user && !isPublicPath) {
+  if (!userId && !isPublicPath) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -41,6 +42,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // 排除公開檔案：sw.js 與 manifest.json 必須可直接取得（未登入也要能載），
+    // 否則 auth redirect 會讓 service worker 註冊拿到 /login HTML 而失敗。
+    '/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)',
   ],
 }

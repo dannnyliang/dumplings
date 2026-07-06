@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { getUserId } from '@/lib/supabase/auth'
 import { createCategory, deleteCategory as deleteCategoryRow, updateCategory } from '@/lib/repos/categories'
 import CategoryAvatar from '@/components/ui/CategoryAvatar'
 import Toggle from '@/components/ui/Toggle'
@@ -31,14 +32,14 @@ export default function CategoryManager({ initialCategories }: CategoryManagerPr
   async function handleAdd(data: CategoryFormData) {
     setError(null)
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setError('請重新登入'); return }
+    const userId = await getUserId(supabase)
+    if (!userId) { setError('請重新登入'); return }
 
     const { data: inserted, error: insertError } = await createCategory(supabase, {
       name: data.name,
       emoji: data.emoji,
       color: data.color,
-      created_by: user.id,
+      created_by: userId,
     })
 
     if (insertError || !inserted) {
