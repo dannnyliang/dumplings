@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
 import DumplingMark from '@/components/ui/DumplingMark'
 import { tryHaptic } from '@/lib/haptics'
+import { directionBetween, setNavDirection } from '@/lib/navDirection'
 
 const NAV_ITEMS = [
   { href: '/', label: '首頁', icon: 'home' as const },
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
 ]
 
 const PREFETCH_PATHS = NAV_ITEMS.map((i) => i.href)
+const NAV_ORDER = PREFETCH_PATHS
 
 export default function BottomNav() {
   const pathname = usePathname()
@@ -40,6 +42,7 @@ export default function BottomNav() {
     e.preventDefault()
     if (href === pathname) return
     tryHaptic()
+    setNavDirection(directionBetween(NAV_ORDER, pathname, href))
     setPendingHref(href)
     startTransition(() => router.push(href))
   }
@@ -56,6 +59,7 @@ export default function BottomNav() {
       return
     }
     tryHaptic()
+    setNavDirection(directionBetween(NAV_ORDER, pathname, '/'))
     setPendingHref('/')
     startTransition(() => router.push('/'))
   }
