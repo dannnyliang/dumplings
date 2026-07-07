@@ -17,7 +17,7 @@ vi.mock('@/lib/supabase/client', () => ({
       })),
       insert: vi.fn(() => Promise.resolve({ error: null })),
     })),
-    auth: { getUser: vi.fn(() => Promise.resolve({ data: { user: { id: 'uid-danny' } } })) },
+    auth: { getClaims: vi.fn(() => Promise.resolve({ data: { claims: { sub: 'uid-danny' } }, error: null })) },
   }),
 }))
 
@@ -49,6 +49,7 @@ describe('AddTransactionButton', () => {
       window.dispatchEvent(new CustomEvent('dmp:open-add'))
     })
     await user.click(screen.getByRole('button', { name: '取消' }))
-    expect(screen.queryByText('新增記錄')).not.toBeInTheDocument()
+    // 關閉會先播退場動畫再卸載，等 modal 完全消失
+    await vi.waitFor(() => expect(screen.queryAllByText('新增記錄')).toHaveLength(0))
   })
 })

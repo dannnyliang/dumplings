@@ -10,15 +10,16 @@ import { formatSignedMoney } from '@/lib/money'
 import { formatDayLabel } from '@/lib/month'
 import { payerLabel } from '@/lib/paidBy'
 import { setTransactionReimbursed } from '@/lib/repos/transactions'
-import type { Transaction } from '@/types/database'
+import type { Category, Transaction } from '@/types/database'
 
 interface TransactionListProps {
   transactions: Transaction[]
   userId: string
   profiles: Record<string, string>
+  categories?: Category[]
 }
 
-export default function TransactionList({ transactions, userId, profiles }: TransactionListProps) {
+export default function TransactionList({ transactions, userId, profiles, categories }: TransactionListProps) {
   const mutate = useMutateTransactions()
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
 
@@ -121,6 +122,7 @@ export default function TransactionList({ transactions, userId, profiles }: Tran
         <TransactionFormModal
           userId={userId}
           transaction={editingTransaction}
+          categories={categories}
           onClose={() => setEditingTransaction(null)}
         />
       )}

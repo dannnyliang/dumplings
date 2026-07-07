@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import TransactionFormModal from './TransactionFormModal'
+import type { Category } from '@/types/database'
 
 interface AddTransactionButtonProps {
   userId: string
+  categories?: Category[]
 }
 
-export default function AddTransactionButton({ userId }: AddTransactionButtonProps) {
+export default function AddTransactionButton({ userId, categories }: AddTransactionButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
@@ -19,6 +21,6 @@ export default function AddTransactionButton({ userId }: AddTransactionButtonPro
   if (!isOpen) return null
 
   return (
-    <TransactionFormModal userId={userId} onClose={() => setIsOpen(false)} />
+    <TransactionFormModal userId={userId} categories={categories} onClose={() => setIsOpen(false)} />
   )
 }

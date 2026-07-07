@@ -1,21 +1,24 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { getUserId } from '@/lib/supabase/auth'
 import { getProfileNameMap } from '@/lib/repos/profiles'
 import { listRecentTransactions } from '@/lib/repos/transactions'
+import { listActiveCategories } from '@/lib/repos/categories'
 import TransactionsBoard from '@/components/TransactionsBoard'
 import DumplingMark from '@/components/ui/DumplingMark'
 
 export default async function Home() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const userId = await getUserId(supabase)
 
-  if (!user) {
+  if (!userId) {
     redirect('/login')
   }
 
-  const [{ data: transactions }, profiles] = await Promise.all([
+  const [{ data: transactions }, profiles, { data: categories }] = await Promise.all([
     listRecentTransactions(supabase),
     getProfileNameMap(supabase),
+    listActiveCategories(supabase),
   ])
 
   return (
@@ -44,8 +47,9 @@ export default async function Home() {
 
       <TransactionsBoard
         initialTransactions={transactions ?? []}
-        userId={user.id}
+        userId={userId}
         profiles={profiles}
+        categories={categories ?? []}
       />
     </main>
   )

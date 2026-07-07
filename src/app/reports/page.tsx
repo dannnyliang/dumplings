@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { getUserId } from '@/lib/supabase/auth'
 import { currentMonth } from '@/lib/month'
 import { listTransactionsInMonth } from '@/lib/repos/transactions'
 import ReportView from './ReportView'
@@ -10,8 +11,8 @@ interface ReportsPageProps {
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const userId = await getUserId(supabase)
+  if (!userId) redirect('/login')
 
   const { month } = await searchParams
   const selectedMonth = month ?? currentMonth()

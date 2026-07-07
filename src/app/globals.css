@@ -25,14 +25,15 @@
 @theme inline {
   --color-background: var(--dmp-bg);
   --color-foreground: var(--dmp-text);
-  --font-sans: var(--font-noto), -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  /* 系統字型堆疊：Apple 用 PingFang TC，Android/Windows 回退各自系統中文字型，零 webfont 下載。 */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", "PingFang SC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
   --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
 }
 
 body {
   background-color: var(--dmp-bg);
   color: var(--dmp-text);
-  font-family: var(--font-noto, -apple-system), BlinkMacSystemFont, "SF Pro Text", "PingFang TC", system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", "PingFang SC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -59,4 +60,29 @@ body {
 @keyframes dmp-toast-in {
   from { transform: translateY(12px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+/* 換頁進場：方向性滑動 + 淡入（iOS push 風）。方向由 navDirection 決定，中性時純淡入。 */
+@keyframes dmp-page-in-forward {
+  from { opacity: 0; transform: translateX(22px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes dmp-page-in-back {
+  from { opacity: 0; transform: translateX(-22px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes dmp-page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.dmp-page-enter-forward { animation: dmp-page-in-forward 0.26s cubic-bezier(0.32, 0.72, 0, 1); }
+.dmp-page-enter-back { animation: dmp-page-in-back 0.26s cubic-bezier(0.32, 0.72, 0, 1); }
+.dmp-page-enter { animation: dmp-page-in 0.2s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dmp-page-enter-forward,
+  .dmp-page-enter-back,
+  .dmp-page-enter {
+    animation: none;
+  }
 }
