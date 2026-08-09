@@ -1,50 +1,25 @@
 # Agent Orchestration
 
-## Available Agents
+## 本專案不定義任何自訂 subagent
 
-Located in `~/.claude/agents/`:
+`~/.claude/agents/` 目前不存在，本專案也沒有 `.agents/agents/`。任何規則文件若指名 `planner`、`tdd-guide`、`code-reviewer`、`e2e-runner` 等 agent，那都是**尚未實現的計畫**，不要嘗試呼叫。
 
-| Agent | Purpose | When to Use |
-|-------|---------|-------------|
-| planner | Implementation planning | Complex features, refactoring |
-| architect | System design | Architectural decisions |
-| tdd-guide | Test-driven development | New features, bug fixes |
-| code-reviewer | Code review | After writing code |
-| security-reviewer | Security analysis | Before commits |
-| build-error-resolver | Fix build errors | When build fails |
-| e2e-runner | E2E testing | Critical user flows |
-| refactor-cleaner | Dead code cleanup | Code maintenance |
-| doc-updater | Documentation | Updating docs |
-| rust-reviewer | Rust code review | Rust projects |
+可用的 agent 由當下的 harness 決定，執行前以 harness 實際提供的清單為準。
 
-## Immediate Agent Usage
+## 不要主動派生 agent
 
-No user prompt needed:
-1. Complex feature requests - Use **planner** agent
-2. Code just written/modified - Use **code-reviewer** agent
-3. Bug fix or new feature - Use **tdd-guide** agent
-4. Architectural decision - Use **architect** agent
+除非使用者明確要求，否則不要為了「加速」或「多角度分析」自行派生 subagent。理由：
 
-## Parallel Task Execution
+- 主 context 看不到 subagent 的中間過程，出錯時難以追查
+- 這個專案規模小，單一 context 足以掌握全貌
+- 使用者的全域偏好明確要求不主動呼叫 agent
 
-ALWAYS use parallel Task execution for independent operations:
+需要多角度檢查時，直接在主 context 依序做完，並在結論後補一段反方自我批評。
 
-```markdown
-# GOOD: Parallel execution
-Launch 3 agents in parallel:
-1. Agent 1: Security analysis of auth module
-2. Agent 2: Performance review of cache system
-3. Agent 3: Type checking of utilities
+## 真的需要時
 
-# BAD: Sequential when unnecessary
-First agent 1, then agent 2, then agent 3
-```
+使用者明確要求後才派生，且必須：
 
-## Multi-Perspective Analysis
-
-For complex problems, use split role sub-agents:
-- Factual reviewer
-- Senior engineer
-- Security expert
-- Consistency reviewer
-- Redundancy checker
+1. 一次把獨立的工作平行送出，不要一個做完再開下一個
+2. 在 prompt 裡寫清楚回傳格式，因為 subagent 的回覆是資料不是給人看的訊息
+3. 自己驗證回傳結果，不要直接當成事實採用
