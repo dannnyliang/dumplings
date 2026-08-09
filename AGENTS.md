@@ -11,18 +11,38 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## Commands
 
 ```bash
+npm run verify       # 改完必跑：lint + typecheck + types:check + unit + e2e
 npm run dev          # Start dev server
 npm run build        # Production build
 npm run lint         # ESLint
-npm run test         # Run all tests (vitest)
+npm run typecheck    # tsc --noEmit
+npm run test         # Unit tests (vitest)
 npm run test:watch   # Tests in watch mode
 npm run test:coverage # Tests with coverage report
+npm run e2e          # Playwright 煙霧測試
+npm run e2e:ui       # Playwright UI 模式
 ```
 
 Run a single test file:
 ```bash
 npx vitest run src/__tests__/components/BalanceSummary.test.tsx
 ```
+
+### 本地 Supabase（verify 的前提）
+
+`types:check` 與 `e2e` 都需要本地 stack 運行中：
+
+```bash
+supabase start       # 啟動本地 stack（需要 Docker）
+npm run db:reset     # 重置資料庫並重啟 Kong
+npm run types:generate # 從本地 schema 重新產生型別
+```
+
+`npm run db:reset` 一併重啟 Kong 是必要的：`supabase db reset` 會重啟 auth 容器但不重啟 Kong，導致其 upstream 指向已消失的容器，API 回 502。
+
+`npm test` 通過**不代表** app 能開——只有 `verify` 會因為真實功能壞掉而變紅。
+
+**`e2e/*.spec.ts` 的既有斷言受 PreToolUse hook 保護，無法直接修改。** 新增測試不受限制；需要調整既有斷言時先向使用者說明理由。
 
 ## AI 設定檔架構
 
