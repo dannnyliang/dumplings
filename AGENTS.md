@@ -59,6 +59,27 @@ npm run types:generate # 從本地 schema 重新產生型別
 
 唯一的例外是 `.claude/settings.json` 與 `.claude/settings.local.json`（hooks、permissions、plugins）——這些沒有跨工具標準，只能留在 Claude 專屬位置。
 
+## Git
+
+**Commit 必須 atomic：一個 commit 只做一件事。** 判準是能不能用一句話說完它做了什麼，而且單獨 revert 不會留下半套狀態。搬檔案、修正內容、新增功能是三件事，即使發生在同一次工作裡也要分開 commit——需要時先把混在一起的改動拆回去，再分批 stage。
+
+格式為 conventional commits：
+
+```
+<type>: <description>
+
+<body：說明為什麼要改，不是重複改了什麼>
+```
+
+type：`feat` / `fix` / `refactor` / `docs` / `test` / `chore` / `perf` / `ci`
+
+其他慣例：
+
+- 不在 `main` 上直接 commit，先開分支
+- 開始工作前確認不是 detached HEAD（`git status -sb` 顯示 `## HEAD (no branch)` 就是）
+- body 寫清楚成因與影響，特別是修 bug 時要說明它為何沒被更早發現
+- PR 說明要涵蓋整個分支的 commit，不是只有最後一個
+
 ## Architecture
 
 **Stack:** Next.js 16 (App Router) + React 19 + TypeScript + Supabase + Tailwind CSS v4 + Recharts + Vitest
