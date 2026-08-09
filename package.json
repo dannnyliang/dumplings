@@ -13,7 +13,10 @@
     "typecheck": "tsc --noEmit",
     "types:generate": "supabase gen types typescript --local > src/types/supabase.ts",
     "types:check": "npm run types:generate && git diff --exit-code src/types/supabase.ts",
-    "verify": "npm run lint && npm run typecheck && npm run types:check && npm test"
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "db:reset": "supabase db reset && docker restart $(docker ps -q -f name=supabase_kong)",
+    "verify": "npm run lint && npm run typecheck && npm run types:check && npm test && npm run e2e"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
