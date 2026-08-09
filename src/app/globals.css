@@ -22,9 +22,39 @@
   --dmp-shadow-card: 0 8px 28px rgba(60,40,20,0.10);
 }
 
+/*
+ * 設計 token 映射到 Tailwind utility。
+ * 上方的 --dmp-* 是唯一真實來源；這裡只是讓它們能以 bg-surface、text-muted、
+ * shadow-card 等形式使用，元件不必再寫 bg-[var(--dmp-surface)] 這種 arbitrary value。
+ * 新增 token 時兩邊都要加，否則 Tailwind 這側取用不到。
+ */
 @theme inline {
   --color-background: var(--dmp-bg);
   --color-foreground: var(--dmp-text);
+
+  --color-surface: var(--dmp-surface);
+  --color-surface-alt: var(--dmp-surface-alt);
+
+  --color-text: var(--dmp-text);
+  --color-soft: var(--dmp-text-soft);
+  --color-muted: var(--dmp-text-muted);
+
+  --color-line: var(--dmp-border);
+  --color-line-strong: var(--dmp-border-strong);
+
+  --color-accent: var(--dmp-accent);
+  --color-accent-soft: var(--dmp-accent-soft);
+  --color-accent-text: var(--dmp-accent-text);
+
+  --color-expense: var(--dmp-expense);
+  --color-expense-strong: var(--dmp-expense-b);
+  --color-income: var(--dmp-income);
+  --color-income-soft: var(--dmp-income-soft);
+
+  --shadow-flat: var(--dmp-shadow);
+  --shadow-soft: var(--dmp-shadow-soft);
+  --shadow-card: var(--dmp-shadow-card);
+
   /* 系統字型堆疊：Apple 用 PingFang TC，Android/Windows 回退各自系統中文字型，零 webfont 下載。 */
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", "PingFang SC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
   --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
