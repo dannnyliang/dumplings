@@ -21,7 +21,7 @@ npm run test:coverage # Tests with coverage report
 
 Run a single test file:
 ```bash
-npx vitest run src/components/__tests__/BalanceSummary.test.tsx
+npx vitest run src/__tests__/components/BalanceSummary.test.tsx
 ```
 
 ## AI 設定檔架構
@@ -91,7 +91,7 @@ This is a couples expense-tracking PWA for Danny + PeiYu. All data is per-househ
 Tables: `profiles`, `categories`, `transactions`, `recurring_transactions`
 
 - `transactions.type`: `'expense' | 'topup'`
-- `transactions.paid_by`: UUID of the payer, or `'shared'` for joint expenses
+- `transactions.paid_by`: 三值契約 — `'shared'`（共同帳戶）、`'credit_card'`（信用卡）、或 payer 的 user UUID。唯一解讀點是 `src/lib/paidBy.ts`
 - `transactions.category_id` → `categories.id` (nullable for topups)
 - `recurring_transactions.frequency`: `'monthly' | 'weekly'`
 - All tables use RLS — authenticated users can view all rows (shared household model)
