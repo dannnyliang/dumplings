@@ -7,8 +7,6 @@ paths:
 ---
 # TypeScript/JavaScript Testing
 
-> This file extends [common/testing.md](../common/testing.md) with TypeScript/JavaScript specific content.
-
 分層策略與理由見 `docs/adr/0003-test-strategy-and-verify-command.md`。
 
 ## 改完必跑 `npm run verify`
@@ -31,4 +29,34 @@ Playwright，測試放 `e2e/`，需要本地 Supabase。
 
 不要寫「斷言自己呼叫了自己」的測試。以 `vi.fn()` 模擬 Supabase 再斷言 `from('transactions')` 有被呼叫，不驗證任何真實行為——欄位名打錯、型別不符、RLS 擋下都抓不到。這類驗證屬於整合測試層。
 
-純函式（`src/lib/*.ts`）是單元測試的主場，維持現有做法。
+純函式（`src/lib/*.ts`）是單元測試的主場，維持現有做法。新增領域概念時先寫測試再寫實作。
+
+### 結構用 Arrange-Act-Assert
+
+```typescript
+test('未清償的代墊不計入共同支出', () => {
+  // Arrange
+  const transactions = [topup(10000), advanceBy('peiyu', 2500)]
+
+  // Act
+  const { balance } = computeBalance(transactions)
+
+  // Assert
+  expect(balance).toBe(10000)
+})
+```
+
+### 命名描述行為，不描述函式
+
+```typescript
+// WRONG：只說了測什麼函式
+test('computeBalance works', () => {})
+
+// CORRECT：說出在什麼條件下會有什麼結果
+test('未清償的代墊不計入共同支出', () => {})
+test('查無分類時回傳未分類', () => {})
+```
+
+### 覆蓋率
+
+`vitest.config.mts` 對 `src/components/**` 與 `src/app/**` 設有 80% 門檻，但 `npm run verify` **不跑** coverage——門檻只在手動執行 `npm run test:coverage` 時生效。不要把「verify 通過」當成覆蓋率達標。
