@@ -1,77 +1,97 @@
 ---
 name: db-migrate
-description: Supabase DB migration workflow for the Dumplings project
-version: 1.0.0
+description: Supabase DB migration workflow for the Dumplings project. Use when adding, altering, or removing database tables, columns, RLS policies, or when a migration fails to apply.
+version: 2.0.0
 ---
 
 # DB Migration — Dumplings
 
-Supabase project ID: `axxxmtevkdqiocizedaq`  
-Migration files: `supabase/migrations/YYYYMMDDHHMMSS_description.sql`
+正式專案 ID：`axxxmtevkdqiocizedaq`
+Migration 檔案：`supabase/migrations/YYYYMMDDHHMMSS_description.sql`
 
-## 1. 建立新 migration
+## 鐵則：先在本地驗證，才推正式
+
+**絕對不要在本地重放通過之前對正式專案套用 migration。**
+
+2026-08-09 首次以本地 stack 重放整串 migration 時，一次抓到兩個潛伏三個月的缺陷：`20260508000000` 重複建立同名 policy 導致無法從零重放；全部 migration 沒有任何 `grant`，使得重建出來的資料庫上 `authenticated` 對所有資料表沒有 DML 權限。兩者在逐步演進的正式環境都不會現形——**只有從零重放會現形**。
+
+## 標準流程
 
 ```bash
-# 產生 timestamp（格式 YYYYMMDDHHmmss）
+# 0. 確認本地 stack 運行中（需要 Docker）
+supabase start
+
+# 1. 建立 migration
 TS=$(date +%Y%m%d%H%M%S)
-# 建立檔案
 touch "supabase/migrations/${TS}_description.sql"
+
+# 2. 寫 SQL（見下方撰寫規則）
+
+# 3. 從零重放全部 migration —— 這一步是重點
+npm run db:reset
+
+# 4. schema 有變就必須重新產生型別，否則 verify 會失敗
+npm run types:generate
+
+# 5. 全套驗證：lint + typecheck + types:check + unit + e2e
+npm run verify
+
+# 6. 以上全綠，才推正式
+supabase db push
 ```
 
-在檔案內寫入 SQL，例如：
+`npm run db:reset` 會一併重啟 Kong。`supabase db reset` 本身只重啟 auth 等容器而不重啟 Kong，導致 Kong 的 upstream 指向已消失的容器，API 一律回 502，症狀看起來像 auth 壞掉。
+
+## 撰寫規則
+
+**冪等，且能從零重放。** 任何 `create policy` 前先 `drop policy if exists`，欄位用 `add column if not exists`。判準是：整串 migration 從空資料庫跑一次必須成功。
+
 ```sql
-alter table categories add column if not exists emoji text;
+-- CORRECT
+drop policy if exists "Authenticated users can update transactions" on public.transactions;
+create policy "Authenticated users can update transactions"
+  on public.transactions for update to authenticated
+  using (true) with check (true);
 ```
 
-## 2. 套用 migration（優先用 Supabase MCP）
+**新資料表必須設定 RLS 與 policy。** 本專案是 household 共享模型，policy 一律 `to authenticated`，不開放 `anon`。
 
-### 方法 A：Supabase MCP apply_migration（推薦）
+```sql
+alter table public.新表 enable row level security;
+create policy "..." on public.新表 for select to authenticated using (true);
+```
 
-使用 `mcp__plugin_supabase_supabase__apply_migration` tool：
-- `project_id`: `axxxmtevkdqiocizedaq`
-- `name`: migration 檔案名稱（不含 .sql，例如 `20260504000000_categories_emoji`）
-- `query`: SQL 內容
+**權限不必手動 grant。** `20260809000000_grant_api_role_privileges.sql` 已設定 default privileges，之後新增的資料表會自動取得 `authenticated` 與 `service_role` 的 DML 權限。若 E2E 出現 `permission denied for table`（SQLSTATE 42501），代表那份 default privileges 沒生效，回頭檢查而不是散落地補 grant。
 
-### 方法 B：CLI push（備用）
+**RLS policy 內呼叫函式要包在 select 裡。** `using (auth.uid() = created_by)` 會對每一列呼叫一次；`using ((select auth.uid()) = created_by)` 只呼叫一次。本專案資料量小、目前無感，新寫的仍照正確寫法。
+
+## 型別
+
+`src/types/database.ts` 從 `src/types/supabase.ts` 衍生，而後者由 schema 產生、**不得手改**。schema 改動後沒跑 `npm run types:generate`，`npm run verify` 的 `types:check` 階段會直接失敗。
+
+## 修復 migration 歷史（僅正式環境）
+
+當正式 DB 已有某 migration 的 schema 但 CLI 歷史未記錄時使用。
 
 ```bash
-npx supabase db push
+# 只用數字 timestamp，不含底線後的描述
+supabase migration repair --status applied 20260420000000
 ```
 
-若失敗顯示 "migration history out of sync"，先執行 repair（見第 4 步）再重試。
-
-## 3. 列出 migration 狀態
-
-使用 `mcp__plugin_supabase_supabase__list_migrations` tool：
-- `project_id`: `axxxmtevkdqiocizedaq`
-
-或用 CLI：
-```bash
-npx supabase migration list
-```
-
-## 4. 修復 migration 歷史（repair）
-
-當 DB 已有某 migration 的 schema 但 CLI 歷史未記錄時使用。
-
-```bash
-# 注意：只用數字 timestamp，不含底線後的描述
-npx supabase migration repair --status applied 20260420000000
-```
-
-若有多筆未追蹤的 migration，逐一執行：
-```bash
-npx supabase migration repair --status applied 20260420000001
-npx supabase migration repair --status applied 20260501000000
-# ...以此類推
-```
-
-Repair 完成後再執行 `db push` 或確認 `list_migrations` 狀態為 applied。
+多筆未追蹤時逐一執行，完成後再 `supabase db push`。
 
 ## 常見錯誤
 
 | 錯誤 | 原因 | 解法 |
 |------|------|------|
-| `relation already exists` | Migration 已在 DB 存在但未被追蹤 | 執行 `migration repair --status applied <NUMERIC_VERSION>` |
+| `policy ... already exists`（42710） | migration 不冪等，先前的 migration 已建立同名 policy | 在 `create policy` 前補 `drop policy if exists` |
+| `permission denied for table`（42501） | 角色缺 DML 權限 | 檢查 `20260809000000` 的 default privileges 是否生效 |
+| `relation already exists` | Migration 已在 DB 存在但未被追蹤 | `supabase migration repair --status applied <NUMERIC_VERSION>` |
 | `invalid version number` | repair 時帶了描述文字 | 只用數字部分，如 `20260420000000` |
-| `Cannot find project ref` | 未 link project | `npx supabase link --project-ref axxxmtevkdqiocizedaq` |
+| `Cannot find project ref` | 未 link project | `supabase link --project-ref axxxmtevkdqiocizedaq` |
+| API 全部回 502 | `supabase db reset` 後 Kong 未重啟 | 用 `npm run db:reset`，或 `docker restart $(docker ps -q -f name=supabase_kong)` |
+| `verify` 的 types:check 失敗 | schema 改了但型別沒重新產生 | `npm run types:generate` |
+
+## 注意
+
+本專案**沒有** Supabase MCP server。舊版此文件建議的 `mcp__plugin_supabase_supabase__apply_migration` 並不存在，一律使用 CLI。
