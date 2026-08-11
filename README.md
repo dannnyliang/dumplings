@@ -21,16 +21,18 @@
 | 樣式 | Tailwind CSS 4 |
 | 圖表 | Recharts 3 |
 | 後端 / 資料庫 | Supabase (PostgreSQL + RLS) |
-| 認證 | Supabase Auth（Magic Link） |
+| 認證 | Supabase Auth（Google OAuth） |
 | 部署 | Vercel |
-| 測試 | Vitest + React Testing Library（93 個測試，覆蓋率 80%+） |
+| 單元測試 | Vitest + React Testing Library |
+| E2E | Playwright（打本地 Supabase） |
 
 ## 本地開發
 
 ### 環境需求
 
 - Node.js 20+
-- Supabase 專案（取得 URL 與 anon key）
+- **Docker**（本地 Supabase stack 需要）
+- Supabase CLI
 
 ### 安裝
 
@@ -40,28 +42,39 @@ cd dumplings
 npm install
 ```
 
-### 環境變數
-
-複製範例檔並填入你的 Supabase 設定：
+### 啟動本地 Supabase
 
 ```bash
-cp .env.local.example .env.local
+supabase start
 ```
 
+會在本機起一套完整的 Postgres + Auth + REST（API `54321`、DB `54322`、Studio `54323`），與正式專案完全隔離。**所有開發與測試都應該打這一套，不要連正式專案。**
+
+### 環境變數
+
+```bash
+cp .env.example .env.local
+```
+
+填入 `supabase start` 輸出的本地 URL 與 key：
+
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase status 顯示的 ANON_KEY>
 ```
 
 ### 資料庫 Migration
 
-在 Supabase Dashboard → SQL Editor 依序執行：
+Migration 由 `supabase start` 自動套用。要從零重放（改動 migration 後必做）：
 
+```bash
+npm run db:reset        # 重置資料庫並重啟 Kong
+npm run types:generate  # schema 有變就要重新產生型別
 ```
-supabase/migrations/20260420000000_init.sql
-supabase/migrations/20260420000001_update_categories_rls.sql
-supabase/migrations/20260420000002_recurring_transactions.sql
-```
+
+`db:reset` 一併重啟 Kong 是必要的：`supabase db reset` 只重啟 auth 等容器，Kong 的 upstream 會指向已消失的容器而讓 API 全部回 502。
+
+推到正式環境前請先讀 `.agents/skills/db-migrate/SKILL.md`——本 repo 有 Supabase GitHub integration，migration 由 PR 流程套用。
 
 ### 啟動
 
@@ -74,10 +87,27 @@ npm run dev
 ## 測試
 
 ```bash
-npm test                # 執行全部測試
+npm run verify          # 改完必跑：lint + typecheck + types:check + unit + e2e
+npm test                # 單元測試
 npm run test:watch      # 監看模式
-npm run test:coverage   # 產生覆蓋率報告
+npm run test:coverage   # 覆蓋率報告（verify 不含此項）
+npm run e2e             # Playwright E2E
+npm run e2e:ui          # Playwright UI 模式
 ```
+
+`npm test` 通過**不代表** app 能開，只有 `npm run verify` 會因為真實功能壞掉而變紅。它需要本地 Supabase 運行中。
+
+E2E 使用 **3100** port（避開 Next.js 預設的 3000，以免撞到其他專案的 dev server），並在開跑前以 `/manifest.json` 驗明 server 身分。
+
+## 文件
+
+| 路徑 | 內容 |
+|------|------|
+| `AGENTS.md` | AI agent 的主入口（`CLAUDE.md` 是它的 symlink） |
+| `CONTEXT.md` | 領域詞彙與概念邊界 |
+| `docs/adr/` | 架構決策紀錄 |
+| `openspec/` | 變更提案與規格 |
+| `.agents/` | agent 規則、skill、command（工具中立） |
 
 ## 專案結構
 
@@ -88,15 +118,18 @@ src/
 │   ├── categories/           # 分類管理
 │   ├── reports/              # 報表與圖表
 │   ├── recurring/            # 定期交易
-│   ├── login/                # 登入頁
+│   ├── login/                # 登入頁（Google OAuth）
 │   └── auth/                 # Auth callback / signout
-├── components/
-│   ├── BalanceSummary.tsx    # 餘額摘要 + 墊付提示
-│   ├── TransactionList.tsx   # 交易列表（可點擊編輯）
-│   ├── TransactionFormModal.tsx  # 新增/編輯/刪除 modal
-│   ├── AddTransactionButton.tsx  # FAB 按鈕
-│   └── BottomNav.tsx         # 底部導覽列
-├── lib/supabase/             # Supabase client（browser / server）
-└── types/database.ts         # 型別定義
-supabase/migrations/          # SQL migration 檔案
+├── components/               # 呈現與互動，不含領域規則
+├── lib/
+│   ├── *.ts                  # 領域模組（純函式）：balance、paidBy、month、money、report
+│   ├── repos/                # 資料表存取，每張表一個模組
+│   └── supabase/             # Supabase client（browser / server）
+└── types/
+    ├── supabase.ts           # 由 schema 產生，不得手改
+    └── database.ts           # 領域型別，自 supabase.ts 衍生
+e2e/                          # Playwright 測試與 fixtures
+supabase/migrations/          # SQL migration
 ```
+
+領域規則只能住在 `src/lib/`，元件不得內嵌——ESLint 會擋，理由見 `docs/adr/0001`。
