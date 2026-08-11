@@ -156,11 +156,17 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+# 登入頁送出的 redirectTo 是 `${window.location.origin}/auth/callback`，因此三種
+# 可能的 origin 都要列進來：dev server 的 localhost 與 127.0.0.1，以及 E2E 的 3100。
+additional_redirect_urls = [
+  "http://localhost:3000/auth/callback",
+  "http://127.0.0.1:3000/auth/callback",
+  "http://localhost:3100/auth/callback",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -333,6 +339,25 @@ url = ""
 skip_nonce_check = false
 # If enabled, it will allow the user to successfully authenticate when the provider does not return an email address.
 email_optional = false
+
+# 本地以 Google 登入。app 的登入頁只有這一種方式，未設定的話本地開發會卡在登入頁。
+#
+# 需要兩件事才會生效：
+# 1. Google Cloud Console 的 OAuth client 加入 redirect URI：
+#      http://127.0.0.1:54321/auth/v1/callback
+# 2. 本機環境變數（放 shell profile，不要寫進任何檔案）：
+#      SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID
+#      SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET
+#
+# 未設定環境變數時本地登入不可用，但其餘功能與 E2E 不受影響——E2E 走的是
+# 帳密管道（見 e2e/fixtures/auth.ts），與此處的 OAuth 設定互不相干。
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+# DO NOT commit your OAuth provider secret to git. Use environment variable substitution instead:
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+# 本地以 Google 登入必須跳過 nonce 檢查，見上方 apple 範本的說明。
+skip_nonce_check = true
 
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
 # You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.

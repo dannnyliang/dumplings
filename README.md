@@ -63,6 +63,25 @@ NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase status 顯示的 ANON_KEY>
 ```
 
+### 本地登入（Google OAuth）
+
+登入頁只有「使用 Google 帳號登入」一種方式，本地要能登入需要兩步：
+
+1. Google Cloud Console 的 OAuth client 加入 redirect URI：
+   ```
+   http://127.0.0.1:54321/auth/v1/callback
+   ```
+2. 在 shell profile 設定憑證（**不要寫進任何檔案**）：
+   ```bash
+   export SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID=...
+   export SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET=...
+   ```
+   設定後重新 `supabase start` 才會生效。
+
+未設定時本地登入不可用，但其餘功能與 E2E 都不受影響——E2E 是用 service_role 建立測試使用者後以帳密取得 session，不經過 OAuth（見 `e2e/fixtures/auth.ts`）。
+
+可用 `curl -s http://127.0.0.1:54321/auth/v1/settings` 確認 `external.google` 是否為 `true`。
+
 ### 資料庫 Migration
 
 Migration 由 `supabase start` 自動套用。要從零重放（改動 migration 後必做）：
