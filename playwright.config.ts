@@ -19,10 +19,15 @@ export const LOCAL_ANON_KEY =
 export const LOCAL_SERVICE_ROLE_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
 
-const BASE_URL = 'http://localhost:3000'
+/**
+ * 刻意避開 3000：那是 Next.js 預設 port，很容易被同時開著的其他專案佔走。
+ * 搭配 global-setup.ts 的身分驗證，即使真的撞上也會立刻失敗而非誤測。
+ */
+export const BASE_URL = 'http://localhost:3100'
 
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   // 所有測試共用同一個本地資料庫，平行執行會互相污染
   fullyParallel: false,
   workers: 1,
@@ -43,7 +48,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: 'npm run dev -- --port 3100',
     url: `${BASE_URL}/login`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
