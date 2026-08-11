@@ -17,7 +17,7 @@ paths:
 
 ## E2E
 
-Playwright，測試放 `e2e/`，需要本地 Supabase（`supabase start`）。
+Playwright，測試放 `e2e/`，需要本地 Supabase——但 `npm run e2e` 會先呼叫 `db:ensure` 自動確保它運行，不必手動啟動。
 
 **E2E 使用 3100 port，不是 3000。** Next.js 預設的 3000 很容易被同時開著的其他專案佔走，而 `reuseExistingServer` 只確認 port 有回應、不確認回應的是哪個 app——曾因此整批測試打到別的專案，其中兩條還是綠的。`e2e/global-setup.ts` 會在開跑前以 `/manifest.json` 的 `name` 驗明正身，不符即整批中止。改動 port 或 webServer 設定時不要移除這道檢查。
 
