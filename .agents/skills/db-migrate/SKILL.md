@@ -36,8 +36,7 @@ npm run types:generate
 # 5. 全套驗證：lint + typecheck + types:check + unit + e2e
 npm run verify
 
-# 6. 以上全綠，才推正式
-supabase db push
+# 6. 以上全綠，開 PR —— 不要自己推正式，見下方
 ```
 
 `npm run db:reset` 會一併重啟 Kong。`supabase db reset` 本身只重啟 auth 等容器而不重啟 Kong，導致 Kong 的 upstream 指向已消失的容器，API 一律回 502，症狀看起來像 auth 壞掉。
@@ -92,21 +91,35 @@ supabase migration repair --status applied 20260420000000
 | API 全部回 502 | `supabase db reset` 後 Kong 未重啟 | 用 `npm run db:reset`，或 `docker restart $(docker ps -q -f name=supabase_kong)` |
 | `verify` 的 types:check 失敗 | schema 改了但型別沒重新產生 | `npm run types:generate` |
 
-## 推正式的另一條路：Supabase MCP
+## 正式環境由 PR 流程套用，不要自己推
 
-`.claude/settings.json` 啟用了 supabase plugin，因此有 `mcp__plugin_supabase_supabase__*` 系列工具可用。`apply_migration` 走 OAuth，**不需要 db password 也不需要 `supabase login`**，在 CLI 認證卡住時是可行的替代路徑。
+本 repo 已設定 **Supabase GitHub integration**：開 PR 時它會建立一個 preview branch（獨立的暫時專案），把 repo 裡的 migration 套上去驗證，結果回報為 `Supabase Preview` 這個 CI check；PR merge 後才套用到 production。
 
-**但它會用自己產生的 timestamp 記錄版本號，不會沿用你的檔名。** 2026-08-11 實測：本地檔案是 `20260809000000_grant_api_role_privileges.sql`，正式歷史記成 `20260811031956`。版本號不一致的話，下次 `supabase db push` 會認為該份尚未套用而再推一次。
+因此正常情況下**不要執行 `supabase db push`，也不要用 MCP `apply_migration` 動 production**。讓 PR 流程處理，版本號會與 repo 檔名一致，且 merge 前一定被驗證過。
 
-用 MCP 套用後，**務必把本地檔案改名為正式歷史顯示的版本號**：
+### 繞過的實際後果（2026-08-11）
+
+當時為了「提早把 grant migration 套上正式」而用 MCP `apply_migration` 直接寫 production，引發一連串問題：
+
+1. MCP 用自己產生的 timestamp 記錄版本號（`20260811031956`），不沿用檔名（`20260809000000`）。
+2. 為了對齊而把本地檔案改名。
+3. 但 preview branch 是更早建立的，它的歷史裡是舊的 `20260809000000`，改名後 repo 裡找不到 → CI 失敗，錯誤為 `Remote migration versions not found in local migrations directory`。
+4. 必須重置 preview branch 才能恢復。
+
+如果當初什麼都不做、直接 merge，integration 會自己套用，版本號一致，這串問題一個都不會發生。
+
+### 什麼時候才用 MCP apply_migration
+
+只在 GitHub integration 失效、或需要緊急修復 production 時。使用後**務必把本地檔案改名為正式歷史顯示的版本號**，並預期 preview branch 需要重置：
 
 ```bash
-# 先確認正式的版本號
-#   mcp__plugin_supabase_supabase__list_migrations
+# 先用 mcp__plugin_supabase_supabase__list_migrations 確認正式的版本號
 git mv supabase/migrations/<本地版本>_<name>.sql \
        supabase/migrations/<正式版本>_<name>.sql
 npm run db:reset   # 確認改名後仍能從零重放
 ```
+
+preview branch 的狀態可用 `mcp__plugin_supabase_supabase__list_branches` 查詢，`MIGRATIONS_FAILED` 即代表需要重置。
 
 ## 正式專案會被暫停
 
