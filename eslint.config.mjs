@@ -35,6 +35,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Playwright 產物：report 內嵌壓縮過的 bundle，lint 它毫無意義且會淹沒真實錯誤。
+    "playwright-report/**",
+    "test-results/**",
+    "blob-report/**",
   ]),
 ]);
 

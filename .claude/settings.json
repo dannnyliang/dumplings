@@ -1,5 +1,21 @@
 {
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // \"\"'); case \"$f\" in */e2e/*.spec.ts) if [ -f \"$f\" ]; then echo \"E2E 斷言受保護：$f 已存在。這些斷言是驗證真實功能的契約，修改既有斷言等於降低驗證強度——auto mode 下最常見的失敗模式就是改測試讓測試通過。可以新增測試檔，但要修改既有斷言，請先向使用者說明理由並取得同意。\" >&2; exit 2; fi ;; esac; exit 0",
+            "statusMessage": "檢查 E2E 斷言保護"
+          }
+        ]
+      }
+    ]
+  },
   "enabledPlugins": {
-    "supabase@claude-plugins-official": true
+    "supabase@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "vercel@claude-plugins-official": true
   }
 }

@@ -9,7 +9,14 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "types:generate": "supabase gen types typescript --local > src/types/supabase.ts",
+    "types:check": "npm run types:generate && git diff --exit-code src/types/supabase.ts",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "db:reset": "supabase db reset && docker restart $(docker ps -q -f name=supabase_kong)",
+    "verify": "npm run lint && npm run typecheck && npm run types:check && npm test && npm run e2e"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
@@ -20,6 +27,7 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

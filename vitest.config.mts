@@ -8,6 +8,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // e2e/ 由 Playwright 執行；vitest 預設會收 **/*.spec.ts，需明確排除。
+    exclude: ['node_modules/**', 'dist/**', '.next/**', 'e2e/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

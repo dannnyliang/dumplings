@@ -2,6 +2,12 @@
 
 Danny 與 PeiYu 的夫妻共同記帳 PWA。所有資料屬於同一個 household（Supabase RLS 共享），核心問題是「共同帳戶還剩多少、誰墊了多少還沒還」。
 
+> **本文件描述的是現行模型，它即將被整批取代。**
+>
+> 新模型的設計已完成於 `openspec/changes/2026-08-09-account-based-ledger/`（尚未實作）：付款方式改為三選一決定現金流出時點、現金移動紀錄取代 `is_reimbursed`、首頁餘額拆成四行同時呈現應計與現金。屆時下方的 **Advance**、**Outstanding Advance**、**Reimburse** 等詞彙都會消失。
+>
+> 動手改記帳邏輯之前，先讀那份 change 的 `design.md`——它記錄了每個決策的理由與代價。
+
 ## Language
 
 **Transaction（交易）**:
