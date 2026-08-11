@@ -92,6 +92,24 @@ supabase migration repair --status applied 20260420000000
 | API 全部回 502 | `supabase db reset` 後 Kong 未重啟 | 用 `npm run db:reset`，或 `docker restart $(docker ps -q -f name=supabase_kong)` |
 | `verify` 的 types:check 失敗 | schema 改了但型別沒重新產生 | `npm run types:generate` |
 
-## 注意
+## 推正式的另一條路：Supabase MCP
 
-本專案**沒有** Supabase MCP server。舊版此文件建議的 `mcp__plugin_supabase_supabase__apply_migration` 並不存在，一律使用 CLI。
+`.claude/settings.json` 啟用了 supabase plugin，因此有 `mcp__plugin_supabase_supabase__*` 系列工具可用。`apply_migration` 走 OAuth，**不需要 db password 也不需要 `supabase login`**，在 CLI 認證卡住時是可行的替代路徑。
+
+**但它會用自己產生的 timestamp 記錄版本號，不會沿用你的檔名。** 2026-08-11 實測：本地檔案是 `20260809000000_grant_api_role_privileges.sql`，正式歷史記成 `20260811031956`。版本號不一致的話，下次 `supabase db push` 會認為該份尚未套用而再推一次。
+
+用 MCP 套用後，**務必把本地檔案改名為正式歷史顯示的版本號**：
+
+```bash
+# 先確認正式的版本號
+#   mcp__plugin_supabase_supabase__list_migrations
+git mv supabase/migrations/<本地版本>_<name>.sql \
+       supabase/migrations/<正式版本>_<name>.sql
+npm run db:reset   # 確認改名後仍能從零重放
+```
+
+## 正式專案會被暫停
+
+免費 tier 閒置一段時間後專案會進入 INACTIVE。此時 CLI 會回報連線逾時，並誤導性地建議「設定 `SUPABASE_DB_PASSWORD`」——那不是真正的原因。
+
+連不上時先查狀態（`mcp__plugin_supabase_supabase__list_projects`），`COMING_UP` 代表正在恢復，等它變成 `ACTIVE_HEALTHY` 再操作。
