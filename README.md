@@ -42,13 +42,18 @@ cd dumplings
 npm install
 ```
 
-### 啟動本地 Supabase
+### 本地 Supabase
+
+**不需要手動啟動，也不需要讓 Docker 常駐。** `npm run dev`、`npm run e2e`、`npm run types:generate`、`npm run db:reset` 都會先確保它在運行——Docker 沒開就開它（macOS 自動，其他平台會提示），Supabase 沒起就起它。
+
+它是一套完整的 Postgres + Auth + REST（API `54321`、DB `54322`、Studio `54323`），與正式專案完全隔離。**所有開發與測試都應該打這一套，不要連正式專案。**
+
+要手動控制時：
 
 ```bash
-supabase start
+npm run db:ensure   # 確保運行中（各指令會自己呼叫，通常不必手動跑）
+npm run db:stop     # 用完關掉，釋放資源
 ```
-
-會在本機起一套完整的 Postgres + Auth + REST（API `54321`、DB `54322`、Studio `54323`），與正式專案完全隔離。**所有開發與測試都應該打這一套，不要連正式專案。**
 
 ### 環境變數
 

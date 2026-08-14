@@ -28,12 +28,13 @@ Run a single test file:
 npx vitest run src/__tests__/components/BalanceSummary.test.tsx
 ```
 
-### 本地 Supabase（verify 的前提）
+### 本地 Supabase
 
-`types:check` 與 `e2e` 都需要本地 stack 運行中：
+`types:check` 與 `e2e` 都需要本地 stack，但**不必手動啟動**——`dev`、`e2e`、`types:generate`、`db:reset` 都會先呼叫 `db:ensure`，它會確保 Docker 與 Supabase 都在運行（見 `scripts/ensure-supabase.sh`）。
 
 ```bash
-supabase start       # 啟動本地 stack（需要 Docker）
+npm run db:ensure    # 確保本地 stack 運行中（各指令自動呼叫）
+npm run db:stop      # 關閉本地 stack
 npm run db:reset     # 重置資料庫並重啟 Kong
 npm run types:generate # 從本地 schema 重新產生型別
 ```
