@@ -13,13 +13,13 @@ const eslintConfig = defineConfig([
         "error",
         {
           selector:
-            "CallExpression[callee.property.name='from'][arguments.0.value=/^(transactions|categories|recurring_transactions|profiles)$/]",
+            "CallExpression[callee.property.name='from'][arguments.0.value=/^(transactions|cash_movements|categories|recurring_transactions|profiles)$/]",
           message: "資料表存取請透過 src/lib/repos 的函式，元件內不要直接下 Supabase 查詢。",
         },
         {
           selector:
-            "BinaryExpression[right.value='shared'], BinaryExpression[right.value='credit_card'], BinaryExpression[left.value='shared'], BinaryExpression[left.value='credit_card']",
-          message: "paid_by 判讀請使用 @/lib/paidBy 的 helpers（isPaidByShared 等），不要比對字面值。",
+            "BinaryExpression[right.value='shared'], BinaryExpression[right.value='joint_card'], BinaryExpression[left.value='shared'], BinaryExpression[left.value='joint_card']",
+          message: "payment_method 判讀請使用 @/lib/paymentMethod 的 helpers（isPaidFromSharedAccount 等），不要比對字面值。",
         },
         {
           selector: "CallExpression[callee.property.name='toLocaleString']",
