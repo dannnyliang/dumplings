@@ -95,13 +95,13 @@ This is a couples expense-tracking PWA for Danny + PeiYu. All data is per-househ
 
 | 層 | 位置 | 職責 |
 |----|------|------|
-| 領域模組 | `src/lib/*.ts` | 純函式 + 具名型別：`paidBy`（paid_by 三值契約唯一解讀點）、`balance`（結餘/代墊規則）、`report`（月報彙總）、`month`（YYYY-MM 契約、本地時區日期）、`money`（金額格式）、`tokens`（調色盤） |
+| 領域模組 | `src/lib/*.ts` | 純函式 + 具名型別：`paymentMethod`（payment_method 三值契約唯一解讀點）、`cashMovement`（現金移動的名稱與資金方向）、`balance`（餘額四行拆解）、`report`（月報彙總、前期比較）、`month`（YYYY-MM 契約、本地時區日期）、`money`（金額格式）、`tokens`（調色盤） |
 | 資料存取 | `src/lib/repos/*.ts` | 每張資料表一個模組；select 形狀只有一份；mutation 以意圖命名；函式接受 `SupabaseClient` 參數（server/client 共用） |
 | 元件/頁面 | `src/app/`、`src/components/` | 只做呈現與互動狀態，消費上面兩層 |
 
 **元件與頁面內禁止**（ESLint `no-restricted-syntax` 會擋）：
 - 直接 `supabase.from('...')` 查資料表 → 用 `src/lib/repos`
-- 比對 `'shared'` / `'credit_card'` 字面值 → 用 `@/lib/paidBy` helpers
+- 比對 `'shared'` / `'joint_card'` 字面值 → 用 `@/lib/paymentMethod` helpers
 - `toLocaleString` 手刻金額 → 用 `formatMoney` / `formatSignedMoney`
 - 手刻月份/日期字串運算 → 用 `@/lib/month`
 
@@ -126,16 +126,18 @@ This is a couples expense-tracking PWA for Danny + PeiYu. All data is per-househ
 - `src/lib/supabase/server.ts` — SSR Supabase client (uses `next/headers` cookies)
 - `src/lib/supabase/client.ts` — Browser Supabase client
 - `src/types/database.ts` — Shared TypeScript types for all DB tables
-- `src/components/TransactionFormModal.tsx` — Shared create/edit/delete form for transactions
+- `src/components/TransactionFormModal.tsx` — Shared create/edit/delete form for transactions（入帳分頁寫入 cash_movements）
+- `src/components/CashMovementFormModal.tsx` — 帳單扣款／結算／編輯現金移動的表單
 
 ### Database Schema (Supabase)
 
-Tables: `profiles`, `categories`, `transactions`, `recurring_transactions`
+Tables: `profiles`, `categories`, `transactions`, `cash_movements`, `recurring_transactions`
 
-- `transactions.type`: `'expense' | 'topup'`
-- `transactions.paid_by`: 三值契約 — `'shared'`（共同帳戶）、`'credit_card'`（信用卡）、或 payer 的 user UUID。唯一解讀點是 `src/lib/paidBy.ts`
-- `transactions.category_id` → `categories.id` (nullable for topups)
-- `recurring_transactions.frequency`: `'monthly' | 'weekly'`
+- `transactions` 只有消費紀錄（沒有 `type` 欄位；入帳在 `cash_movements`）
+- `transactions.payment_method`: 三值契約 — `'shared'`（共同帳戶）、`'joint_card'`（共同卡）、或墊付者的 user UUID。唯一解讀點是 `src/lib/paymentMethod.ts`
+- `transactions.category_id` → `categories.id` (nullable)
+- `cash_movements.kind`: `'topup' | 'card_bill' | 'settlement'`；`settlement` 需有 `counterparty`（user UUID）。唯一解讀點是 `src/lib/cashMovement.ts`
+- `recurring_transactions.frequency`: `'monthly' | 'weekly'`；模板仍以舊 `paid_by` 值儲存（見 `paymentMethodFromLegacyPaidBy`）
 - All tables use RLS — authenticated users can view all rows (shared household model)
 - Migrations live in `supabase/migrations/`
 
