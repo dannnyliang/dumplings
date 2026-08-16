@@ -1,4 +1,4 @@
-import { formatMoney } from '@/lib/money'
+import { formatMoney, formatSignedMoney } from '@/lib/money'
 import type { BalanceBreakdown } from '@/lib/balance'
 import type { MonthTotals } from '@/lib/report'
 
@@ -74,7 +74,10 @@ export default function BalanceSummary({
               className="text-accent flex w-full cursor-pointer items-center justify-between border-none bg-transparent p-0 text-left text-[13px] font-medium"
             >
               <span>共同卡未出帳</span>
-              <span className="font-mono">-{formatMoney(cardUnbilled)}</span>
+              {/* 扣款超過累計消費時未出帳為負（多扣的部分下期收斂），以 + 顯示 */}
+              <span className="font-mono">
+                {formatSignedMoney(Math.abs(cardUnbilled), cardUnbilled >= 0 ? 'out' : 'in')}
+              </span>
             </button>
           )}
 
