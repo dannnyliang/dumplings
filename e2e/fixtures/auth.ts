@@ -90,9 +90,27 @@ export async function signInAs(context: BrowserContext, key: TestUserKey): Promi
   )
 }
 
-/** 清空所有交易，讓每個測試從已知狀態開始。分類為 seed 資料，保留。 */
+/** 清空所有交易與現金移動，讓每個測試從已知狀態開始。分類為 seed 資料，保留。 */
 export async function resetTransactions(): Promise<void> {
   const admin = adminClient()
-  const { error } = await admin.from('transactions').delete().not('id', 'is', null)
-  if (error) throw error
+  for (const table of ['transactions', 'cash_movements']) {
+    const { error } = await admin.from(table).delete().not('id', 'is', null)
+    if (error) throw error
+  }
+}
+
+/**
+ * 以指定測試使用者的身分建立 API client（anon key + 帳密登入），
+ * 供 RLS 驗證直接打資料庫、不經瀏覽器。
+ */
+export async function userClient(key: TestUserKey): Promise<SupabaseClient> {
+  const client = createClient(LOCAL_SUPABASE_URL, LOCAL_ANON_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  const { error } = await client.auth.signInWithPassword({
+    email: TEST_USERS[key].email,
+    password: TEST_PASSWORD,
+  })
+  if (error) throw new Error(`測試使用者 ${key} 登入失敗：${error.message}`)
+  return client
 }
