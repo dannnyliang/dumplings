@@ -3,55 +3,68 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import CategoryAvatar from '@/components/ui/CategoryAvatar'
-import { useMutateTransactions } from '@/components/TransactionsMutationContext'
+import { useLedgerMutators } from '@/components/TransactionsMutationContext'
 import { todayISO } from '@/lib/month'
 import {
-  PAYER_FORM_LABELS,
-  formKindFromPaidBy,
-  isPaidByShared,
-  paidByForTransaction,
-  type PayerFormKind,
-} from '@/lib/paidBy'
+  PAYMENT_METHOD_SHARED,
+  paymentMethodOptionLabel,
+  paymentMethodOptions,
+} from '@/lib/paymentMethod'
 import { listActiveCategories } from '@/lib/repos/categories'
+import { createCashMovement } from '@/lib/repos/cashMovements'
 import {
   createTransaction,
   deleteTransaction,
-  setTransactionReimbursed,
   updateTransaction,
 } from '@/lib/repos/transactions'
-import type { Category, Transaction } from '@/types/database'
+import type { CashMovement, Category, Transaction } from '@/types/database'
 
 interface TransactionFormModalProps {
   userId: string
   transaction?: Transaction
   /** server 端預取的 active categories；提供時 sheet 秒開，未提供則 client 端 fallback 抓取。 */
   categories?: Category[]
+  /** 付款方式按鈕顯示他人名稱用；未提供時以預設文案顯示。 */
+  profiles?: Record<string, string>
   onClose: () => void
 }
+
+/** 新增時的類型：支出寫入消費紀錄，入帳寫入現金移動。 */
+type EntryKind = 'expense' | 'topup'
 
 const TODAY = todayISO()
 /** 下滑超過此距離（px）即關閉，否則彈回。 */
 const DISMISS_THRESHOLD = 110
 const CLOSE_ANIM_MS = 240
+/** 6.3 預設帶入上次使用的付款方式。 */
+const LAST_PAYMENT_METHOD_KEY = 'dumplings:lastPaymentMethod'
+
+function readLastPaymentMethod(userId: string): string {
+  if (typeof window === 'undefined') return PAYMENT_METHOD_SHARED
+  const stored = window.localStorage.getItem(LAST_PAYMENT_METHOD_KEY)
+  if (stored && paymentMethodOptions(userId).includes(stored)) return stored
+  return PAYMENT_METHOD_SHARED
+}
 
 export default function TransactionFormModal({
   userId,
   transaction,
   categories: initialCategories,
+  profiles = {},
   onClose,
 }: TransactionFormModalProps) {
-  const mutate = useMutateTransactions()
+  const { mutateTransaction, mutateCashMovement } = useLedgerMutators()
   const isEdit = !!transaction
 
-  const [type, setType] = useState<'expense' | 'topup'>(transaction?.type ?? 'expense')
+  const [entryKind, setEntryKind] = useState<EntryKind>('expense')
   const [amount, setAmount] = useState(transaction ? String(transaction.amount) : '')
   const [categoryId, setCategoryId] = useState<string>(
     transaction?.category_id ?? initialCategories?.[0]?.id ?? ''
   )
   const [date, setDate] = useState(transaction?.date ?? TODAY)
   const [note, setNote] = useState(transaction?.note ?? '')
-  const [paidBy, setPaidBy] = useState<PayerFormKind>(() =>
-    transaction ? formKindFromPaidBy(transaction.paid_by) : 'shared'
+  const [paymentMethod, setPaymentMethod] = useState<string>(() =>
+    transaction ? transaction.payment_method : readLastPaymentMethod(userId)
   )
   const [categories, setCategories] = useState<Category[]>(initialCategories ?? [])
   const [submitting, setSubmitting] = useState(false)
@@ -62,6 +75,8 @@ export default function TransactionFormModal({
   const dragStartYRef = useRef<number | null>(null)
   const dragOffsetRef = useRef(0)
   const closingRef = useRef(false)
+
+  const methodOptions = paymentMethodOptions(userId, transaction?.payment_method)
 
   // 統一的關閉路徑：播退場動畫（sheet 滑落 + backdrop 淡出）後才真正卸載。
   function requestClose() {
@@ -122,6 +137,68 @@ export default function TransactionFormModal({
   }, [transaction?.category_id, initialCategories])
 
   const canSave = !!amount && parseFloat(amount) > 0
+  const isExpense = isEdit || entryKind === 'expense'
+
+  function submitExpense(parsedAmount: number, supabase: ReturnType<typeof createClient>) {
+    const payload = {
+      amount: parsedAmount,
+      category_id: categoryId || null,
+      date,
+      note: note.trim() || null,
+      payment_method: paymentMethod,
+    }
+    const category = payload.category_id
+      ? categories.find((c) => c.id === payload.category_id)
+      : undefined
+
+    if (isEdit && transaction) {
+      const optimistic: Transaction = { ...transaction, ...payload, category }
+      mutateTransaction({ kind: 'update', record: optimistic }, async () => {
+        const { error: updateError } = await updateTransaction(supabase, transaction.id, payload)
+        return { error: updateError }
+      })
+    } else {
+      const optimistic: Transaction = {
+        id: crypto.randomUUID(),
+        ...payload,
+        created_by: userId,
+        created_at: new Date().toISOString(),
+        category,
+      }
+      mutateTransaction({ kind: 'create', record: optimistic }, async () => {
+        const { error: insertError } = await createTransaction(supabase, {
+          ...payload,
+          created_by: userId,
+        })
+        return { error: insertError }
+      })
+    }
+
+    window.localStorage.setItem(LAST_PAYMENT_METHOD_KEY, paymentMethod)
+  }
+
+  function submitTopup(parsedAmount: number, supabase: ReturnType<typeof createClient>) {
+    const payload = {
+      amount: parsedAmount,
+      date,
+      kind: 'topup' as const,
+      counterparty: null,
+      note: note.trim() || null,
+    }
+    const optimistic: CashMovement = {
+      id: crypto.randomUUID(),
+      ...payload,
+      created_by: userId,
+      created_at: new Date().toISOString(),
+    }
+    mutateCashMovement({ kind: 'create', record: optimistic }, async () => {
+      const { error: insertError } = await createCashMovement(supabase, {
+        ...payload,
+        created_by: userId,
+      })
+      return { error: insertError }
+    })
+  }
 
   function handleSubmit() {
     const parsedAmount = parseFloat(amount)
@@ -134,38 +211,10 @@ export default function TransactionFormModal({
     setError(null)
 
     const supabase = createClient()
-    const payload = {
-      amount: parsedAmount,
-      type,
-      category_id: type === 'expense' ? categoryId || null : null,
-      date,
-      note: note.trim() || null,
-      paid_by: paidByForTransaction(type, paidBy, userId),
-    }
-    const category = payload.category_id
-      ? categories.find((c) => c.id === payload.category_id)
-      : undefined
-
-    if (isEdit && transaction) {
-      const optimistic: Transaction = { ...transaction, ...payload, category }
-      mutate({ kind: 'update', transaction: optimistic }, async () => {
-        const { error } = await updateTransaction(supabase, transaction.id, payload)
-        return { error }
-      })
+    if (isExpense) {
+      submitExpense(parsedAmount, supabase)
     } else {
-      const optimistic: Transaction = {
-        id: crypto.randomUUID(),
-        ...payload,
-        is_reimbursed: false,
-        reimbursed_at: null,
-        created_by: userId,
-        created_at: new Date().toISOString(),
-        category,
-      }
-      mutate({ kind: 'create', transaction: optimistic }, async () => {
-        const { error } = await createTransaction(supabase, { ...payload, created_by: userId })
-        return { error }
-      })
+      submitTopup(parsedAmount, supabase)
     }
 
     requestClose()
@@ -175,20 +224,9 @@ export default function TransactionFormModal({
     if (!transaction) return
     setSubmitting(true)
     const supabase = createClient()
-    mutate({ kind: 'delete', id: transaction.id }, async () => {
-      const { error } = await deleteTransaction(supabase, transaction.id)
-      return { error }
-    })
-    requestClose()
-  }
-
-  function handleUnreimburse() {
-    if (!transaction) return
-    setSubmitting(true)
-    const supabase = createClient()
-    mutate({ kind: 'reimburse', id: transaction.id, isReimbursed: false }, async () => {
-      const { error } = await setTransactionReimbursed(supabase, transaction.id, false)
-      return { error }
+    mutateTransaction({ kind: 'delete', id: transaction.id }, async () => {
+      const { error: deleteError } = await deleteTransaction(supabase, transaction.id)
+      return { error: deleteError }
     })
     requestClose()
   }
@@ -197,59 +235,41 @@ export default function TransactionFormModal({
     <div
       ref={backdropRef}
       onClick={(e) => { if (e.target === backdropRef.current) requestClose() }}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 30,
-        backgroundColor: 'rgba(30,20,12,0.4)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        animation: 'dmp-fade-in 0.2s ease',
-      }}
+      className="fixed inset-0 z-30 flex animate-[dmp-fade-in_0.2s_ease] items-end justify-center bg-[rgba(30,20,12,0.4)]"
     >
       <div
         ref={sheetRef}
-        style={{
-          backgroundColor: 'var(--dmp-bg)',
-          borderRadius: '28px 28px 0 0',
-          width: '100%',
-          maxWidth: 480,
-          paddingBottom: 'max(24px, env(safe-area-inset-bottom))',
-          animation: 'dmp-slide-up 0.28s cubic-bezier(0.3,0.7,0.3,1)',
-          maxHeight: '92dvh',
-          overflowY: 'auto',
-        }}
+        className="bg-background max-h-[92dvh] w-full max-w-[480px] animate-[dmp-slide-up_0.28s_cubic-bezier(0.3,0.7,0.3,1)] overflow-y-auto rounded-t-[28px] pb-[max(24px,env(safe-area-inset-bottom))]"
       >
         {/* grabber + header：下滑手勢區（不涵蓋可捲動的表單本體，避免與捲動衝突） */}
         <div
           onTouchStart={handleDragStart}
           onTouchMove={handleDragMove}
           onTouchEnd={handleDragEnd}
-          style={{ touchAction: 'none' }}
+          className="touch-none"
         >
         {/* grabber */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 8 }}>
-          <div style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'var(--dmp-border-strong)' }} />
+        <div className="flex justify-center pt-3 pb-2">
+          <div className="bg-line-strong h-[5px] w-9 rounded-[3px]" />
         </div>
 
         {/* header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 20px 12px' }}>
+        <div className="flex items-center justify-between px-5 pt-1 pb-3">
           <button
             onClick={requestClose}
-            style={{ fontSize: 15, color: 'var(--dmp-text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}
+            className="text-muted cursor-pointer border-none bg-transparent py-1 text-[15px]"
           >
             取消
           </button>
-          <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--dmp-text)' }}>
+          <span className="text-text text-base font-semibold">
             {isEdit ? '編輯記錄' : '新增記錄'}
           </span>
           <button
             onClick={handleSubmit}
             disabled={submitting || !canSave}
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              color: canSave && !submitting ? 'var(--dmp-accent)' : 'var(--dmp-text-muted)',
-              background: 'none', border: 'none', cursor: canSave && !submitting ? 'pointer' : 'default',
-              padding: '4px 0',
-            }}
+            className={`border-none bg-transparent py-1 text-[15px] font-semibold ${
+              canSave && !submitting ? 'text-accent cursor-pointer' : 'text-muted cursor-default'
+            }`}
           >
             {submitting ? '處理中' : '儲存'}
           </button>
@@ -257,31 +277,30 @@ export default function TransactionFormModal({
         </div>
         {/* /grabber + header drag region */}
 
-        <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* type segmented */}
-          <div style={{ display: 'flex', backgroundColor: 'var(--dmp-surface-alt)', borderRadius: 14, padding: 3, gap: 3 }}>
-            {(['expense', 'topup'] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setType(t)}
-                style={{
-                  flex: 1, padding: '8px 0', borderRadius: 11, border: 'none',
-                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                  backgroundColor: type === t ? 'var(--dmp-surface)' : 'transparent',
-                  color: type === t ? 'var(--dmp-text)' : 'var(--dmp-text-muted)',
-                  boxShadow: type === t ? '0 1px 4px rgba(30,20,12,0.10)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {t === 'expense' ? '支出' : '入帳'}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-col gap-3.5 px-5">
+          {/* entry kind segmented（新增時才有；編輯只會是消費紀錄） */}
+          {!isEdit && (
+            <div className="bg-surface-alt flex gap-[3px] rounded-[14px] p-[3px]">
+              {(['expense', 'topup'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setEntryKind(t)}
+                  className={`flex-1 cursor-pointer rounded-[11px] border-none py-2 text-sm font-semibold transition-all ${
+                    entryKind === t
+                      ? 'bg-surface text-text shadow-[0_1px_4px_rgba(30,20,12,0.10)]'
+                      : 'text-muted bg-transparent'
+                  }`}
+                >
+                  {t === 'expense' ? '支出' : '入帳'}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* amount */}
-          <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 18, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 6, boxShadow: 'var(--dmp-shadow-soft)' }}>
-            <span style={{ fontSize: 18, color: 'var(--dmp-text-muted)', fontFamily: '"SF Mono", ui-monospace, monospace' }}>NT$</span>
+          <div className="bg-surface shadow-soft flex items-center gap-1.5 rounded-[18px] px-[18px] py-3.5">
+            <span className="text-muted font-mono text-lg">NT$</span>
             <input
               type="number"
               inputMode="decimal"
@@ -289,18 +308,14 @@ export default function TransactionFormModal({
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0"
               required
-              style={{
-                flex: 1, fontSize: 28, fontWeight: 700, color: 'var(--dmp-text)',
-                fontFamily: '"SF Mono", ui-monospace, monospace',
-                background: 'none', border: 'none', outline: 'none',
-              }}
+              className="text-text flex-1 border-none bg-transparent font-mono text-[28px] font-bold outline-none"
             />
           </div>
 
           {/* category chips (expense only) */}
-          {type === 'expense' && categories.length > 0 && (
-            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', marginLeft: -20, marginRight: -20, paddingLeft: 20, paddingRight: 20 }}>
-              <div style={{ display: 'flex', gap: 8, paddingBottom: 4 }}>
+          {isExpense && categories.length > 0 && (
+            <div className="-mx-5 overflow-x-auto px-5 [-webkit-overflow-scrolling:touch] [scrollbar-width:none]">
+              <div className="flex gap-2 pb-1">
                 {categories.map((c) => {
                   const selected = c.id === categoryId
                   return (
@@ -308,17 +323,16 @@ export default function TransactionFormModal({
                       key={c.id}
                       type="button"
                       onClick={() => setCategoryId(c.id)}
-                      style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                        padding: '8px 10px', borderRadius: 14, border: 'none', cursor: 'pointer',
-                        flexShrink: 0,
-                        backgroundColor: selected ? 'var(--dmp-surface)' : 'var(--dmp-surface-alt)',
-                        boxShadow: selected ? 'var(--dmp-shadow-soft)' : 'none',
-                        transition: 'all 0.15s ease',
-                      }}
+                      className={`flex shrink-0 cursor-pointer flex-col items-center gap-1 rounded-[14px] border-none px-2.5 py-2 transition-all ${
+                        selected ? 'bg-surface shadow-soft' : 'bg-surface-alt'
+                      }`}
                     >
                       <CategoryAvatar emoji={c.emoji} color={c.color} size={36} />
-                      <span style={{ fontSize: 11, fontWeight: selected ? 600 : 400, color: selected ? 'var(--dmp-text)' : 'var(--dmp-text-muted)', whiteSpace: 'nowrap' }}>
+                      <span
+                        className={`text-[11px] whitespace-nowrap ${
+                          selected ? 'text-text font-semibold' : 'text-muted font-normal'
+                        }`}
+                      >
                         {c.name}
                       </span>
                     </button>
@@ -329,93 +343,71 @@ export default function TransactionFormModal({
           )}
 
           {/* note */}
-          <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 14, padding: '12px 16px', boxShadow: 'var(--dmp-shadow-soft)' }}>
+          <div className="bg-surface shadow-soft rounded-[14px] px-4 py-3">
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="備註（選填）"
-              style={{
-                width: '100%', fontSize: 14, color: 'var(--dmp-text)',
-                background: 'none', border: 'none', outline: 'none',
-              }}
+              className="text-text w-full border-none bg-transparent text-sm outline-none"
             />
           </div>
 
-          {/* paid_by (expense only) */}
-          {type === 'expense' && (
-            <div style={{ display: 'flex', backgroundColor: 'var(--dmp-surface-alt)', borderRadius: 14, padding: 3, gap: 3 }}>
-              {(['shared', 'self', 'credit_card'] as const).map((p) => (
+          {/* payment method (expense only) */}
+          {isExpense && (
+            <div className="bg-surface-alt flex gap-[3px] rounded-[14px] p-[3px]">
+              {methodOptions.map((option) => (
                 <button
-                  key={p}
+                  key={option}
                   type="button"
-                  onClick={() => setPaidBy(p)}
-                  style={{
-                    flex: 1, padding: '8px 0', borderRadius: 11, border: 'none',
-                    fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                    backgroundColor: paidBy === p ? 'var(--dmp-accent-soft)' : 'transparent',
-                    color: paidBy === p ? 'var(--dmp-accent-text)' : 'var(--dmp-text-muted)',
-                    transition: 'all 0.15s ease',
-                  }}
+                  onClick={() => setPaymentMethod(option)}
+                  className={`flex-1 cursor-pointer rounded-[11px] border-none py-2 text-[13px] font-semibold transition-all ${
+                    paymentMethod === option
+                      ? 'bg-accent-soft text-accent-text'
+                      : 'text-muted bg-transparent'
+                  }`}
                 >
-                  {PAYER_FORM_LABELS[p]}
+                  {paymentMethodOptionLabel(option, userId, profiles)}
                 </button>
               ))}
             </div>
           )}
 
           {/* date */}
-          <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 14, padding: '12px 16px', boxShadow: 'var(--dmp-shadow-soft)' }}>
+          <div className="bg-surface shadow-soft rounded-[14px] px-4 py-3">
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
-              style={{
-                width: '100%', fontSize: 14, color: 'var(--dmp-text)',
-                background: 'none', border: 'none', outline: 'none',
-              }}
+              className="text-text w-full border-none bg-transparent text-sm outline-none"
             />
           </div>
 
-          {error && <p style={{ fontSize: 12, color: '#B83B3B', margin: 0 }}>{error}</p>}
+          {error && <p className="m-0 text-xs text-[#B83B3B]">{error}</p>}
 
           {/* primary CTA */}
           <button
             type="button"
             onClick={handleSubmit}
             disabled={submitting || !canSave}
-            style={{
-              width: '100%', padding: '14px 0', borderRadius: 18, border: 'none',
-              fontSize: 16, fontWeight: 700, cursor: canSave && !submitting ? 'pointer' : 'not-allowed',
-              backgroundColor: canSave && !submitting ? 'var(--dmp-accent)' : 'var(--dmp-surface-alt)',
-              color: canSave && !submitting ? '#FFFFFF' : 'var(--dmp-text-muted)',
-              transition: 'all 0.15s ease',
-            }}
+            className={`w-full rounded-[18px] border-none py-3.5 text-base font-bold transition-all ${
+              canSave && !submitting
+                ? 'bg-accent cursor-pointer text-white'
+                : 'bg-surface-alt text-muted cursor-not-allowed'
+            }`}
           >
             {submitting ? '處理中...' : isEdit ? '儲存變更' : '新增記錄'}
           </button>
 
-          {/* unreimburse (edit only, advance payment already settled) */}
-          {isEdit && transaction?.is_reimbursed && !isPaidByShared(transaction.paid_by) && (
-            <button
-              type="button"
-              onClick={handleUnreimburse}
-              disabled={submitting}
-              style={{ width: '100%', padding: '10px 0', borderRadius: 14, border: '1.5px solid var(--dmp-border-strong)', fontSize: 14, fontWeight: 500, cursor: 'pointer', background: 'none', color: 'var(--dmp-text-muted)' }}
-            >
-              還原為「未還清」
-            </button>
-          )}
-
           {/* delete (edit only) */}
           {isEdit && (
             confirmDelete ? (
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(false)}
-                  style={{ flex: 1, padding: '12px 0', borderRadius: 14, border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', backgroundColor: 'var(--dmp-surface-alt)', color: 'var(--dmp-text-muted)' }}
+                  className="bg-surface-alt text-muted flex-1 cursor-pointer rounded-[14px] border-none py-3 text-sm font-semibold"
                 >
                   取消
                 </button>
@@ -423,7 +415,7 @@ export default function TransactionFormModal({
                   type="button"
                   onClick={handleDelete}
                   disabled={submitting}
-                  style={{ flex: 1, padding: '12px 0', borderRadius: 14, border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', backgroundColor: '#B83B3B', color: '#FFFFFF' }}
+                  className="flex-1 cursor-pointer rounded-[14px] border-none bg-[#B83B3B] py-3 text-sm font-semibold text-white"
                 >
                   確認刪除
                 </button>
@@ -433,14 +425,14 @@ export default function TransactionFormModal({
                 type="button"
                 onClick={() => setConfirmDelete(true)}
                 disabled={submitting}
-                style={{ width: '100%', padding: '10px 0', borderRadius: 14, border: 'none', fontSize: 14, fontWeight: 500, cursor: 'pointer', background: 'none', color: '#B83B3B' }}
+                className="w-full cursor-pointer border-none bg-transparent py-2.5 text-sm font-medium text-[#B83B3B]"
               >
                 刪除這筆記錄
               </button>
             )
           )}
 
-          <div style={{ height: 8 }} />
+          <div className="h-2" />
         </div>
       </div>
     </div>

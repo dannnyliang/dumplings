@@ -9,28 +9,24 @@ const mockInsert = vi.fn(() => Promise.resolve({ error: null }))
 const mockUpdate = vi.fn(() => ({
   eq: vi.fn(() => Promise.resolve({ error: null })),
 }))
-const mockSupabase = {
-  from: vi.fn(() => ({
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        order: vi.fn(() =>
-          Promise.resolve({
-            data: [{ id: 'cat-1', name: '餐飲', emoji: '🍜', color: '#FFE3D5', is_active: true }],
-            error: null,
-          })
-        ),
-      })),
-    })),
-    insert: mockInsert,
-    update: mockUpdate,
-    delete: vi.fn(() => ({
-      eq: vi.fn(() => Promise.resolve({ error: null })),
+const mockFrom = vi.fn(() => ({
+  select: vi.fn(() => ({
+    eq: vi.fn(() => ({
+      order: vi.fn(() =>
+        Promise.resolve({
+          data: [{ id: 'cat-1', name: '餐飲', emoji: '🍜', color: '#FFE3D5', is_active: true }],
+          error: null,
+        })
+      ),
     })),
   })),
-  auth: {
-    getClaims: vi.fn(() => Promise.resolve({ data: { claims: { sub: 'uid-danny' } }, error: null })),
-  },
-}
+  insert: mockInsert,
+  update: mockUpdate,
+  delete: vi.fn(() => ({
+    eq: vi.fn(() => Promise.resolve({ error: null })),
+  })),
+}))
+const mockSupabase = { from: mockFrom }
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: mockRefresh }),
@@ -41,22 +37,25 @@ vi.mock('@/lib/supabase/client', () => ({
 }))
 
 vi.mock('@/components/TransactionsMutationContext', () => ({
-  useMutateTransactions:
-    () => (_optimistic: unknown, commit: () => Promise<{ error: unknown }>) => {
+  useLedgerMutators: () => ({
+    mutateTransaction: (_optimistic: unknown, commit: () => Promise<{ error: unknown }>) => {
       void commit()
     },
+    mutateCashMovement: (_optimistic: unknown, commit: () => Promise<{ error: unknown }>) => {
+      void commit()
+    },
+  }),
 }))
+
+const PROFILES = { 'uid-danny': 'Danny', 'uid-peiyu': 'PeiYu' }
 
 const BASE_TRANSACTION: Transaction = {
   id: 't1',
   amount: 500,
-  type: 'expense',
   category_id: 'cat-1',
   date: '2026-04-01',
   note: '午餐',
-  paid_by: 'uid-danny',
-  is_reimbursed: false,
-  reimbursed_at: null,
+  payment_method: 'uid-danny',
   created_by: 'uid-danny',
   created_at: '2026-04-01T00:00:00Z',
 }
@@ -66,6 +65,7 @@ describe('TransactionFormModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    window.localStorage.clear()
   })
 
   describe('新增模式', () => {
@@ -85,9 +85,12 @@ describe('TransactionFormModal', () => {
       expect(screen.queryByText('刪除這筆記錄')).not.toBeInTheDocument()
     })
 
-    it('支出模式顯示「信用卡」選項', () => {
+    it('付款方式只有共同帳戶、共同卡、我墊的三個選項', () => {
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
-      expect(screen.getByRole('button', { name: '信用卡' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '共同帳戶' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '共同卡' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '我墊的' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /PeiYu 墊的/ })).not.toBeInTheDocument()
     })
 
     it('切換到入帳後付款方式選項消失', async () => {
@@ -95,7 +98,7 @@ describe('TransactionFormModal', () => {
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
       await user.click(screen.getByRole('button', { name: '入帳' }))
       expect(screen.queryByText('共同帳戶')).not.toBeInTheDocument()
-      expect(screen.queryByText('信用卡')).not.toBeInTheDocument()
+      expect(screen.queryByText('共同卡')).not.toBeInTheDocument()
     })
 
     it('分類 chip 顯示 emoji', async () => {
@@ -118,9 +121,21 @@ describe('TransactionFormModal', () => {
       expect(screen.getAllByText('編輯記錄').length).toBeGreaterThanOrEqual(1)
     })
 
-    it('創建者可見刪除按鈕', () => {
+    it('不顯示支出／入帳切換（編輯的必為消費紀錄）', () => {
       render(<TransactionFormModal userId="uid-danny" transaction={BASE_TRANSACTION} onClose={onClose} />)
-      expect(screen.getByText('刪除這筆記錄')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: '入帳' })).not.toBeInTheDocument()
+    })
+
+    it('編輯他人墊付的紀錄時，該使用者出現在付款方式選項且為選取值', () => {
+      render(
+        <TransactionFormModal
+          userId="uid-peiyu"
+          transaction={BASE_TRANSACTION}
+          profiles={PROFILES}
+          onClose={onClose}
+        />
+      )
+      expect(screen.getByRole('button', { name: 'Danny 墊的' })).toBeInTheDocument()
     })
 
     it('非創建者也顯示刪除按鈕', () => {
@@ -164,44 +179,44 @@ describe('TransactionFormModal', () => {
       await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
     })
 
-    it('預設以共同帳戶送出，paid_by 為 shared', async () => {
+    it('預設以共同帳戶送出，payment_method 為 shared', async () => {
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
       fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '300' } })
       const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
       fireEvent.click(ctaBtn)
       await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
       expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({ amount: 300, paid_by: 'shared', created_by: 'uid-danny' })
+        expect.objectContaining({ amount: 300, payment_method: 'shared', created_by: 'uid-danny' })
       )
     })
 
-    it('選擇信用卡後送出，paid_by 為 credit_card', async () => {
+    it('選擇共同卡後送出，payment_method 為 joint_card', async () => {
       const user = userEvent.setup()
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
       fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '500' } })
-      await user.click(screen.getByRole('button', { name: '信用卡' }))
+      await user.click(screen.getByRole('button', { name: '共同卡' }))
       const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
       fireEvent.click(ctaBtn)
       await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
       expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({ amount: 500, paid_by: 'credit_card' })
+        expect.objectContaining({ amount: 500, payment_method: 'joint_card' })
       )
     })
 
-    it('選擇我先墊付後送出，paid_by 為使用者 id', async () => {
+    it('選擇我墊的後送出，payment_method 為使用者 id', async () => {
       const user = userEvent.setup()
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
       fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '500' } })
-      await user.click(screen.getByRole('button', { name: '我先墊付' }))
+      await user.click(screen.getByRole('button', { name: '我墊的' }))
       const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
       fireEvent.click(ctaBtn)
       await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
       expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({ paid_by: 'uid-danny' })
+        expect.objectContaining({ payment_method: 'uid-danny' })
       )
     })
 
-    it('入帳送出時 paid_by 固定為 shared', async () => {
+    it('入帳送出時寫入 cash_movements 的入帳紀錄', async () => {
       const user = userEvent.setup()
       render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
       await user.click(screen.getByRole('button', { name: '入帳' }))
@@ -209,9 +224,25 @@ describe('TransactionFormModal', () => {
       const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
       fireEvent.click(ctaBtn)
       await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+      expect(mockFrom).toHaveBeenCalledWith('cash_movements')
       expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'topup', paid_by: 'shared', category_id: null })
+        expect.objectContaining({ amount: 10000, kind: 'topup', counterparty: null })
       )
+    })
+
+    it('送出後記住付款方式，下次開啟預設帶入', async () => {
+      const user = userEvent.setup()
+      const first = render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
+      fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '500' } })
+      await user.click(screen.getByRole('button', { name: '共同卡' }))
+      const ctaBtn = screen.getAllByText('新增記錄').find(el => el.tagName === 'BUTTON')!
+      fireEvent.click(ctaBtn)
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+      first.unmount()
+
+      render(<TransactionFormModal userId="uid-danny" onClose={onClose} />)
+      // 亮起的按鈕帶 bg-accent-soft class
+      expect(screen.getByRole('button', { name: '共同卡' }).className).toContain('bg-accent-soft')
     })
   })
 

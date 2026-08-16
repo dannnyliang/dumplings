@@ -22,10 +22,14 @@ vi.mock('@/lib/supabase/client', () => ({
 }))
 
 vi.mock('@/components/TransactionsMutationContext', () => ({
-  useMutateTransactions:
-    () => (_optimistic: unknown, commit: () => Promise<{ error: unknown }>) => {
+  useLedgerMutators: () => ({
+    mutateTransaction: (_optimistic: unknown, commit: () => Promise<{ error: unknown }>) => {
       void commit()
     },
+    mutateCashMovement: (_optimistic: unknown, commit: () => Promise<{ error: unknown }>) => {
+      void commit()
+    },
+  }),
 }))
 
 describe('AddTransactionButton', () => {

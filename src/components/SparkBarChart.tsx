@@ -14,7 +14,7 @@ export default function SparkBarChart({ transactions }: SparkBarChartProps) {
     1,
     ...days.map((day) =>
       transactions
-        .filter((t) => t.type === 'expense' && t.date === day)
+        .filter((t) => t.date === day)
         .reduce((sum, t) => sum + Number(t.amount), 0)
     )
   )
@@ -35,7 +35,7 @@ export default function SparkBarChart({ transactions }: SparkBarChartProps) {
     >
       {days.map((day, i) => {
         const amount = transactions
-          .filter((t) => t.type === 'expense' && t.date === day)
+          .filter((t) => t.date === day)
           .reduce((sum, t) => sum + Number(t.amount), 0)
         const ratio = amount / maxAmount
         const barH = Math.max(4, Math.round(ratio * H))

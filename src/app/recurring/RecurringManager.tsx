@@ -8,8 +8,9 @@ import CategoryAvatar from '@/components/ui/CategoryAvatar'
 import Icon from '@/components/ui/Icon'
 import { formatMoney, formatSignedMoney } from '@/lib/money'
 import { todayISO } from '@/lib/month'
-import { PAYER_FORM_LABELS, paidByForTransaction } from '@/lib/paidBy'
+import { PAYMENT_METHOD_SHARED, paymentMethodFromLegacyPaidBy } from '@/lib/paymentMethod'
 import { createRecurring, deactivateRecurring } from '@/lib/repos/recurring'
+import { createCashMovement } from '@/lib/repos/cashMovements'
 import { createTransaction } from '@/lib/repos/transactions'
 import type { Category, RecurringTransaction } from '@/types/database'
 
@@ -24,6 +25,12 @@ const TODAY = todayISO()
 const FREQ_LABEL: Record<string, string> = {
   monthly: '每月',
   weekly: '每週',
+}
+
+/** 定期模板的付款選項（模板仍以舊 paid_by 欄位儲存，見 paymentMethodFromLegacyPaidBy）。 */
+const RECURRING_PAYER_LABELS: Record<'shared' | 'self', string> = {
+  shared: '共同帳戶',
+  self: '我墊的',
 }
 
 export default function RecurringManager({ initialRecurring, categories, userId }: RecurringManagerProps) {
@@ -56,7 +63,7 @@ export default function RecurringManager({ initialRecurring, categories, userId 
       type,
       category_id: type === 'expense' ? categoryId || null : null,
       note: note.trim() || null,
-      paid_by: paidByForTransaction(type, paidBy, userId),
+      paid_by: type === 'expense' && paidBy === 'self' ? userId : PAYMENT_METHOD_SHARED,
       frequency,
       day_of_month: frequency === 'monthly' ? Number(dayOfMonth) : null,
       created_by: userId,
@@ -76,15 +83,25 @@ export default function RecurringManager({ initialRecurring, categories, userId 
   async function triggerNow(item: RecurringTransaction) {
     setTriggering(item.id)
     const supabase = createClient()
-    const { error: insertError } = await createTransaction(supabase, {
-      amount: item.amount,
-      type: item.type,
-      category_id: item.category_id,
-      date: TODAY,
-      note: item.note,
-      paid_by: item.paid_by,
-      created_by: userId,
-    })
+    // 模板 type 為 expense 產生消費紀錄；topup 產生入帳現金移動
+    const { error: insertError } =
+      item.type === 'expense'
+        ? await createTransaction(supabase, {
+            amount: item.amount,
+            category_id: item.category_id,
+            date: TODAY,
+            note: item.note,
+            payment_method: paymentMethodFromLegacyPaidBy(item.paid_by),
+            created_by: userId,
+          })
+        : await createCashMovement(supabase, {
+            amount: item.amount,
+            date: TODAY,
+            kind: 'topup',
+            counterparty: null,
+            note: item.note,
+            created_by: userId,
+          })
 
     if (insertError) {
       setError('記帳失敗')
@@ -213,7 +230,7 @@ export default function RecurringManager({ initialRecurring, categories, userId 
                     backgroundColor: paidBy === p ? 'var(--dmp-accent-soft)' : 'transparent',
                     color: paidBy === p ? 'var(--dmp-accent-text)' : 'var(--dmp-text-muted)',
                   }}>
-                    {PAYER_FORM_LABELS[p]}
+                    {RECURRING_PAYER_LABELS[p]}
                   </button>
                 ))}
               </div>
@@ -256,7 +273,7 @@ export default function RecurringManager({ initialRecurring, categories, userId 
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: item.type === 'topup' ? 'var(--dmp-income)' : 'var(--dmp-expense)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
-                        {formatSignedMoney(item.amount, item.type)}
+                        {formatSignedMoney(item.amount, item.type === 'topup' ? 'in' : 'out')}
                       </p>
                       <button onClick={() => deactivate(item)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dmp-text-muted)', display: 'flex', padding: 4 }}

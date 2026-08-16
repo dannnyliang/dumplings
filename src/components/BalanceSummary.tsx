@@ -1,99 +1,125 @@
-import { computeBalance } from '@/lib/balance'
 import { formatMoney } from '@/lib/money'
-import { payerLabel } from '@/lib/paidBy'
-import type { Transaction } from '@/types/database'
+import type { BalanceBreakdown } from '@/lib/balance'
+import type { MonthTotals } from '@/lib/report'
 
 interface BalanceSummaryProps {
-  transactions: Transaction[]
+  breakdown: BalanceBreakdown
+  monthTotals: MonthTotals
   profiles: Record<string, string>
+  /** 點「共同卡未出帳」→ 記一筆帳單扣款 */
+  onRecordCardBill: () => void
+  /** 點某人的待還墊付 → 結算給該對象（金額預設帶入其待還總額） */
+  onSettle: (userId: string, outstanding: number) => void
 }
 
 interface StatPillProps {
   label: string
   amount: number
-  color: string
-  softBg: string
+  colorClass: string
+  bgClass: string
   prefix: string
 }
 
-function StatPill({ label, amount, color, softBg, prefix }: StatPillProps) {
+function StatPill({ label, amount, colorClass, bgClass, prefix }: StatPillProps) {
   return (
-    <div style={{
-      flex: 1,
-      backgroundColor: softBg,
-      borderRadius: 14,
-      padding: '10px 14px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 2,
-    }}>
-      <span style={{ fontSize: 11, color: 'var(--dmp-text-muted)', fontWeight: 500 }}>{label}</span>
-      <span style={{ fontSize: 15, fontWeight: 700, color, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
-        {prefix}{formatMoney(amount)}
+    <div className={`flex flex-1 flex-col gap-0.5 rounded-[14px] px-3.5 py-2.5 ${bgClass}`}>
+      <span className="text-muted text-[11px] font-medium">{label}</span>
+      <span className={`font-mono text-[15px] font-bold ${colorClass}`}>
+        {prefix}
+        {formatMoney(amount)}
       </span>
     </div>
   )
 }
 
-export default function BalanceSummary({ transactions, profiles }: BalanceSummaryProps) {
-  const { topupTotal, sharedExpenseTotal, balance, advancesByPayer } = computeBalance(transactions)
+/**
+ * 首頁餘額四行拆解：共同帳戶餘額（現金）、共同卡未出帳與待還墊付（應計負債）、可動用。
+ * 負債兩類本身是入口——點未出帳記帳單扣款、點待還墊付記結算。
+ */
+export default function BalanceSummary({
+  breakdown,
+  monthTotals,
+  profiles,
+  onRecordCardBill,
+  onSettle,
+}: BalanceSummaryProps) {
+  const { cashBalance, cardUnbilled, advancesByUser, available } = breakdown
+  const advanceEntries = Object.entries(advancesByUser)
+  const hasLiabilities = cardUnbilled !== 0 || advanceEntries.length > 0
 
   return (
-    <div style={{
-      backgroundColor: 'var(--dmp-surface)',
-      borderRadius: 32,
-      padding: 22,
-      boxShadow: 'var(--dmp-shadow-card)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 16,
-    }}>
+    <div className="bg-surface shadow-card flex flex-col gap-4 rounded-[2rem] p-[22px]">
       <div>
-        <p style={{ fontSize: 11, color: 'var(--dmp-text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>
+        <p className="text-muted mb-1.5 text-[11px] font-medium tracking-[0.8px] uppercase">
           共同帳戶餘額
         </p>
         <p
           data-testid="balance-amount"
-          data-negative={balance < 0 ? 'true' : undefined}
-          style={{
-            fontSize: 40,
-            fontWeight: 700,
-            color: balance >= 0 ? 'var(--dmp-text)' : 'var(--dmp-expense-b)',
-            fontFamily: '"SF Mono", ui-monospace, monospace',
-            letterSpacing: -0.5,
-            lineHeight: 1,
-          }}
+          data-negative={cashBalance < 0 ? 'true' : undefined}
+          className={`font-mono text-[40px] leading-none font-bold tracking-[-0.5px] ${
+            cashBalance >= 0 ? 'text-text' : 'text-expense-strong'
+          }`}
         >
-          {formatMoney(balance)}
+          {formatMoney(cashBalance)}
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      {hasLiabilities && (
+        <div className="border-line flex flex-col gap-1 border-t pt-3">
+          {cardUnbilled !== 0 && (
+            <button
+              type="button"
+              data-testid="card-unbilled"
+              onClick={onRecordCardBill}
+              className="text-accent flex w-full cursor-pointer items-center justify-between border-none bg-transparent p-0 text-left text-[13px] font-medium"
+            >
+              <span>共同卡未出帳</span>
+              <span className="font-mono">-{formatMoney(cardUnbilled)}</span>
+            </button>
+          )}
+
+          {advanceEntries.map(([payerId, outstanding]) => (
+            <button
+              key={payerId}
+              type="button"
+              data-testid={`advance-${payerId}`}
+              onClick={() => onSettle(payerId, outstanding)}
+              className="text-accent w-full cursor-pointer border-none bg-transparent p-0 text-left text-[13px] font-medium"
+            >
+              {profiles[payerId] ?? '某人'} 墊付了 {formatMoney(outstanding)}，尚未還清
+            </button>
+          ))}
+
+          <div className="border-line mt-1.5 flex items-center justify-between border-t pt-2">
+            <span className="text-soft text-[13px] font-semibold">可動用</span>
+            <span
+              data-testid="available-amount"
+              className={`font-mono text-[15px] font-bold ${
+                available >= 0 ? 'text-text' : 'text-expense-strong'
+              }`}
+            >
+              {formatMoney(available)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-2.5">
         <StatPill
           label="本月支出"
-          amount={sharedExpenseTotal}
-          color="var(--dmp-expense-b)"
-          softBg="var(--dmp-accent-soft)"
+          amount={monthTotals.expenseTotal}
+          colorClass="text-expense-strong"
+          bgClass="bg-accent-soft"
           prefix="-"
         />
         <StatPill
           label="本月入帳"
-          amount={topupTotal}
-          color="var(--dmp-income)"
-          softBg="var(--dmp-income-soft)"
+          amount={monthTotals.topupTotal}
+          colorClass="text-income"
+          bgClass="bg-income-soft"
           prefix="+"
         />
       </div>
-
-      {Object.entries(advancesByPayer).length > 0 && (
-        <div style={{ borderTop: '1px solid var(--dmp-border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {Object.entries(advancesByPayer).map(([payerId, total]) => (
-            <p key={payerId} style={{ fontSize: 12, color: 'var(--dmp-accent)', fontWeight: 500 }}>
-              {payerLabel(payerId, profiles)} 墊付了 {formatMoney(total)}，尚未還清
-            </p>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
