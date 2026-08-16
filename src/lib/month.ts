@@ -24,6 +24,11 @@ export function currentMonth(): string {
   return todayISO().slice(0, 7)
 }
 
+/** 'YYYY-MM-DD' 所屬的 'YYYY-MM'。 */
+export function monthOf(date: string): string {
+  return date.slice(0, 7)
+}
+
 /** 一個月份的起訖日期（含），供查詢邊界使用。 */
 export function monthRange(month: string): { start: string; end: string } {
   const [year, mon] = month.split('-').map(Number)

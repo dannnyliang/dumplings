@@ -20,15 +20,15 @@ describe('formatMoney', () => {
 })
 
 describe('formatSignedMoney', () => {
-  it('prefixes topup amounts with +', () => {
-    expect(formatSignedMoney(15000, 'topup')).toBe('+NT$ 15,000')
+  it('prefixes inflow amounts with +', () => {
+    expect(formatSignedMoney(15000, 'in')).toBe('+NT$ 15,000')
   })
 
-  it('prefixes expense amounts with -', () => {
-    expect(formatSignedMoney(500, 'expense')).toBe('-NT$ 500')
+  it('prefixes outflow amounts with -', () => {
+    expect(formatSignedMoney(500, 'out')).toBe('-NT$ 500')
   })
 
   it('coerces numeric strings', () => {
-    expect(formatSignedMoney('300', 'expense')).toBe('-NT$ 300')
+    expect(formatSignedMoney('300', 'out')).toBe('-NT$ 300')
   })
 })

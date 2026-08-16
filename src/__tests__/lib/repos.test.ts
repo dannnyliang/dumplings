@@ -1,10 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import {
-  createTransaction,
-  listTransactionsInMonth,
-  setTransactionReimbursed,
-} from '@/lib/repos/transactions'
+import { createTransaction, listTransactionsInMonth } from '@/lib/repos/transactions'
 import { listActiveCategories } from '@/lib/repos/categories'
 import { createRecurring, deactivateRecurring, RECURRING_WITH_CATEGORY } from '@/lib/repos/recurring'
 
@@ -16,11 +12,10 @@ describe('transactions repo', () => {
 
     const payload = {
       amount: 500,
-      type: 'expense' as const,
       category_id: 'cat-1',
       date: '2026-04-01',
       note: null,
-      paid_by: 'credit_card',
+      payment_method: 'joint_card',
       created_by: 'uid-danny',
     }
     await createTransaction(supabase, payload)
@@ -43,28 +38,6 @@ describe('transactions repo', () => {
     expect(lte).toHaveBeenCalledWith('date', '2026-02-28')
   })
 
-  it('setTransactionReimbursed(true) stamps reimbursed_at', async () => {
-    const eq = vi.fn(() => Promise.resolve({ error: null }))
-    const update = vi.fn(() => ({ eq }))
-    const from = vi.fn(() => ({ update }))
-    const supabase = { from } as unknown as SupabaseClient
-
-    await setTransactionReimbursed(supabase, 't1', true)
-
-    expect(update).toHaveBeenCalledWith({ is_reimbursed: true, reimbursed_at: expect.any(String) })
-    expect(eq).toHaveBeenCalledWith('id', 't1')
-  })
-
-  it('setTransactionReimbursed(false) clears reimbursed_at', async () => {
-    const eq = vi.fn(() => Promise.resolve({ error: null }))
-    const update = vi.fn(() => ({ eq }))
-    const from = vi.fn(() => ({ update }))
-    const supabase = { from } as unknown as SupabaseClient
-
-    await setTransactionReimbursed(supabase, 't1', false)
-
-    expect(update).toHaveBeenCalledWith({ is_reimbursed: false, reimbursed_at: null })
-  })
 })
 
 describe('categories repo', () => {
