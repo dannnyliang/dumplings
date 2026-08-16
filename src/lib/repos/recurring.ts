@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { RecurringFrequency, TransactionType } from '@/types/database'
+import type { RecurringFrequency, RecurringType } from '@/types/database'
 
 /** recurring_transactions 資料表的唯一存取點。 */
 
@@ -7,7 +7,7 @@ export const RECURRING_WITH_CATEGORY = '*, category:categories(id, name)'
 
 export interface NewRecurring {
   amount: number
-  type: TransactionType
+  type: RecurringType
   category_id: string | null
   note: string | null
   paid_by: string
