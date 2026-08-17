@@ -17,7 +17,3 @@ export function paletteForCategoryName(name: string | null | undefined): { bg: s
   const hash = [...name].reduce((acc, ch) => acc + (ch.codePointAt(0) ?? 0), 0)
   return CATEGORY_PALETTE[hash % CATEGORY_PALETTE.length]
 }
-
-export const WARM_CHART_COLORS = [
-  '#B8562B', '#D4A574', '#A88C6B', '#7A6A54', '#B38968', '#C89B7B', '#8B7860',
-]
