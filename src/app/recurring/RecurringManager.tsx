@@ -157,7 +157,7 @@ export default function RecurringManager({ initialRecurring, categories, userId 
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Link href="/" style={{ color: 'var(--dmp-text-muted)', display: 'flex' }}>
+          <Link href="/settings" aria-label="回設定" style={{ color: 'var(--dmp-text-muted)', display: 'flex' }}>
             <Icon name="back" size={22} />
           </Link>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--dmp-text)', margin: 0 }}>定期</h1>

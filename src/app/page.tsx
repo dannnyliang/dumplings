@@ -5,8 +5,10 @@ import { getProfileNameMap } from '@/lib/repos/profiles'
 import { fetchAllTransactions } from '@/lib/repos/transactions'
 import { fetchAllCashMovements } from '@/lib/repos/cashMovements'
 import { listActiveCategories } from '@/lib/repos/categories'
+import Link from 'next/link'
 import TransactionsBoard from '@/components/TransactionsBoard'
 import DumplingMark from '@/components/ui/DumplingMark'
+import Icon from '@/components/ui/Icon'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -42,11 +44,9 @@ export default async function Home() {
           <DumplingMark size={28} />
           Dumplings
         </h1>
-        <form action="/auth/signout" method="post">
-          <button type="submit" style={{ fontSize: 13, color: 'var(--dmp-text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
-            登出
-          </button>
-        </form>
+        <Link href="/settings" aria-label="設定" className="text-muted flex">
+          <Icon name="settings" size={22} />
+        </Link>
       </header>
 
       <TransactionsBoard
