@@ -5,22 +5,22 @@ import {
   consumeNavDirection,
 } from '@/lib/navDirection'
 
-const ORDER = ['/', '/reports', '/categories', '/recurring']
+// 與 BottomNav 的 NAV_ORDER 一致：主導覽只剩首頁與報表兩頁
+const ORDER = ['/', '/reports']
 
 describe('directionBetween', () => {
   it('往導覽順序右側移動回 forward', () => {
     expect(directionBetween(ORDER, '/', '/reports')).toBe('forward')
-    expect(directionBetween(ORDER, '/reports', '/recurring')).toBe('forward')
   })
 
   it('往導覽順序左側移動回 back', () => {
-    expect(directionBetween(ORDER, '/recurring', '/')).toBe('back')
-    expect(directionBetween(ORDER, '/categories', '/reports')).toBe('back')
+    expect(directionBetween(ORDER, '/reports', '/')).toBe('back')
   })
 
-  it('來源或目標不在清單時回 none', () => {
+  it('來源或目標不在清單時回 none（設定、分類、定期一律中性淡入）', () => {
     expect(directionBetween(ORDER, '/login', '/')).toBe('none')
-    expect(directionBetween(ORDER, '/', '/unknown')).toBe('none')
+    expect(directionBetween(ORDER, '/', '/settings')).toBe('none')
+    expect(directionBetween(ORDER, '/categories', '/reports')).toBe('none')
   })
 
   it('同一頁回 none', () => {

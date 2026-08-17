@@ -8,14 +8,14 @@ import DumplingMark from '@/components/ui/DumplingMark'
 import { tryHaptic } from '@/lib/haptics'
 import { directionBetween, setNavDirection } from '@/lib/navDirection'
 
+// 導覽縮為 3 格：首頁／FAB／報表（design D7）。分類與定期收進設定頁。
 const NAV_ITEMS = [
   { href: '/', label: '首頁', icon: 'home' as const },
   { href: '/reports', label: '報表', icon: 'chart' as const },
-  { href: '/categories', label: '分類', icon: 'tag' as const },
-  { href: '/recurring', label: '定期', icon: 'repeat' as const },
 ]
 
 const PREFETCH_PATHS = NAV_ITEMS.map((i) => i.href)
+/** navDirection 的頁面順序契約：只涵蓋主導覽兩頁，其他路徑一律中性淡入。 */
 const NAV_ORDER = PREFETCH_PATHS
 
 export default function BottomNav() {
@@ -84,12 +84,12 @@ export default function BottomNav() {
           maxWidth: 480,
           margin: '0 auto',
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr 72px 1fr 1fr',
+          gridTemplateColumns: '1fr 72px 1fr',
           alignItems: 'end',
           height: 54,
         }}
       >
-        {NAV_ITEMS.slice(0, 2).map((item) => {
+        {NAV_ITEMS.slice(0, 1).map((item) => {
           const isActive = visiblePath === item.href
           return (
             <Link
@@ -167,7 +167,7 @@ export default function BottomNav() {
           </button>
         </div>
 
-        {NAV_ITEMS.slice(2).map((item) => {
+        {NAV_ITEMS.slice(1).map((item) => {
           const isActive = visiblePath === item.href
           return (
             <Link

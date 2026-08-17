@@ -22,12 +22,12 @@ describe('BottomNav', () => {
     mockUsePathname.mockReturnValue('/')
   })
 
-  it('顯示全部 4 個導覽項目', () => {
+  it('只顯示首頁與報表兩個導覽項目（3 格：首頁／FAB／報表）', () => {
     render(<BottomNav />)
     expect(screen.getByText('首頁')).toBeInTheDocument()
     expect(screen.getByText('報表')).toBeInTheDocument()
-    expect(screen.getByText('分類')).toBeInTheDocument()
-    expect(screen.getByText('定期')).toBeInTheDocument()
+    expect(screen.queryByText('分類')).not.toBeInTheDocument()
+    expect(screen.queryByText('定期')).not.toBeInTheDocument()
   })
 
   it('首頁路徑時首頁 tab 為 active（fontWeight 600）', () => {
@@ -51,25 +51,17 @@ describe('BottomNav', () => {
     expect(reportsLink?.style.fontWeight).toBe('600')
   })
 
-  it('/categories 路徑時分類 tab 為 active', () => {
-    mockUsePathname.mockReturnValue('/categories')
+  it('非主導覽頁（如設定）時兩個 tab 都 inactive，FAB 顯示回首頁', () => {
+    mockUsePathname.mockReturnValue('/settings')
     render(<BottomNav />)
-    const categoriesLink = screen.getByText('分類').closest('a')
-    expect(categoriesLink?.style.fontWeight).toBe('600')
-  })
-
-  it('/recurring 路徑時定期 tab 為 active', () => {
-    mockUsePathname.mockReturnValue('/recurring')
-    render(<BottomNav />)
-    const recurringLink = screen.getByText('定期').closest('a')
-    expect(recurringLink?.style.fontWeight).toBe('600')
+    expect(screen.getByText('首頁').closest('a')?.style.fontWeight).toBe('500')
+    expect(screen.getByText('報表').closest('a')?.style.fontWeight).toBe('500')
+    expect(screen.getByRole('button', { name: '回到首頁' })).toBeInTheDocument()
   })
 
   it('連結指向正確的 href', () => {
     render(<BottomNav />)
     expect(screen.getByText('首頁').closest('a')).toHaveAttribute('href', '/')
     expect(screen.getByText('報表').closest('a')).toHaveAttribute('href', '/reports')
-    expect(screen.getByText('分類').closest('a')).toHaveAttribute('href', '/categories')
-    expect(screen.getByText('定期').closest('a')).toHaveAttribute('href', '/recurring')
   })
 })
