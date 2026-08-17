@@ -3,32 +3,32 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import dynamic from 'next/dynamic'
 import Icon from '@/components/ui/Icon'
 import { formatMoney, formatSignedMoney } from '@/lib/money'
 import { formatMonthLabel, shiftMonth } from '@/lib/month'
-import { computeMonthTotals, computeMonthlySummary, filterTransactions } from '@/lib/report'
+import { compareWithPreviousAverage, computeMonthTotals, filterTransactions } from '@/lib/report'
+import CategoryComparisonList from './CategoryComparisonList'
 import type { CashMovement, Transaction } from '@/types/database'
-
-const ChartIsland = dynamic(() => import('./ChartIsland'), {
-  ssr: false,
-  loading: () => (
-    <div className="animate-pulse rounded-2xl bg-[var(--dmp-surface-alt)]" style={{ height: 280 }} />
-  ),
-})
 
 interface ReportViewProps {
   transactions: Transaction[]
   cashMovements: CashMovement[]
+  /** 前幾個月的消費紀錄（每月一組），作為分類比較的基準 */
+  previousByMonth: Transaction[][]
   selectedMonth: string
 }
 
-export default function ReportView({ transactions, cashMovements, selectedMonth }: ReportViewProps) {
+export default function ReportView({
+  transactions,
+  cashMovements,
+  previousByMonth,
+  selectedMonth,
+}: ReportViewProps) {
   const router = useRouter()
   const [search, setSearch] = useState('')
 
-  const { totalExpense, pieData } = computeMonthlySummary(transactions)
-  const { topupTotal } = computeMonthTotals(transactions, cashMovements, selectedMonth)
+  const { expenseTotal, topupTotal } = computeMonthTotals(transactions, cashMovements, selectedMonth)
+  const comparisons = compareWithPreviousAverage(transactions, previousByMonth)
   const filtered = filterTransactions(transactions, search)
 
   return (
@@ -67,7 +67,7 @@ export default function ReportView({ transactions, cashMovements, selectedMonth 
           <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: '14px 16px', boxShadow: 'var(--dmp-shadow-soft)' }}>
             <p style={{ fontSize: 11, color: 'var(--dmp-text-muted)', fontWeight: 500, margin: '0 0 4px' }}>本月支出</p>
             <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--dmp-expense)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
-              {formatMoney(totalExpense)}
+              {formatMoney(expenseTotal)}
             </p>
           </div>
           <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: '14px 16px', boxShadow: 'var(--dmp-shadow-soft)' }}>
@@ -78,8 +78,8 @@ export default function ReportView({ transactions, cashMovements, selectedMonth 
           </div>
         </div>
 
-        {/* pie chart (lazy-loaded recharts island) */}
-        <ChartIsland pieData={pieData} totalExpense={totalExpense} />
+        {/* 分類支出與前期平均的比較（純文字，spec：圖表非必要） */}
+        <CategoryComparisonList comparisons={comparisons} />
 
         {/* search */}
         <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, boxShadow: 'var(--dmp-shadow-soft)' }}>

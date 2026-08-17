@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest'
 import {
   FLAT_DELTA_THRESHOLD,
   compareWithPreviousAverage,
+  comparisonText,
   computeMonthTotals,
   computeMonthlySummary,
   filterTransactions,
 } from '@/lib/report'
+import type { CategoryComparison } from '@/lib/report'
 import type { CashMovement, Category, Transaction } from '@/types/database'
 
 function category(id: string, name: string): Category {
@@ -149,6 +151,47 @@ describe('compareWithPreviousAverage（與前期平均比較）', () => {
     ]
     const rows = compareWithPreviousAverage(current, [])
     expect(rows.map((r) => r.name)).toEqual(['娛樂', '餐飲'])
+  })
+})
+
+describe('comparisonText（比較文案）', () => {
+  function comparison(overrides: Partial<CategoryComparison>): CategoryComparison {
+    return {
+      name: '餐飲',
+      amount: 12400,
+      baseline: 9200,
+      delta: 3200,
+      isFlat: false,
+      baselineMonths: 3,
+      ...overrides,
+    }
+  }
+
+  it('高於前三月平均時顯示多出的金額', () => {
+    expect(comparisonText(comparison({ delta: 3200 }))).toBe('比前三月平均多 NT$ 3,200')
+  })
+
+  it('低於前三月平均時顯示減少的金額', () => {
+    expect(comparisonText(comparison({ delta: -1500 }))).toBe('比前三月平均少 NT$ 1,500')
+  })
+
+  it('持平時不顯示具體差額', () => {
+    expect(comparisonText(comparison({ delta: 300, isFlat: true }))).toBe('與前三月平均持平')
+  })
+
+  it('基準不足三個月時標示月份數', () => {
+    expect(comparisonText(comparison({ delta: 800, baselineMonths: 2 }))).toBe('比前 2 月平均多 NT$ 800')
+  })
+
+  it('沒有任何前期資料時如實說明', () => {
+    expect(comparisonText(comparison({ baselineMonths: 0 }))).toBe('尚無前期資料可比較')
+  })
+
+  it('差額為小數時四捨五入顯示', () => {
+    // 兩個月合計 1000，平均 333.33...
+    expect(comparisonText(comparison({ delta: 666.6666, baselineMonths: 3 }))).toBe(
+      '比前三月平均多 NT$ 667'
+    )
   })
 })
 
