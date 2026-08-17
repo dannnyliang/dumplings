@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getUserId } from '@/lib/supabase/auth'
 import { getProfileNameMap } from '@/lib/repos/profiles'
-import { listRecentTransactions } from '@/lib/repos/transactions'
+import { fetchAllTransactions } from '@/lib/repos/transactions'
+import { fetchAllCashMovements } from '@/lib/repos/cashMovements'
 import { listActiveCategories } from '@/lib/repos/categories'
 import TransactionsBoard from '@/components/TransactionsBoard'
 import DumplingMark from '@/components/ui/DumplingMark'
@@ -15,11 +16,14 @@ export default async function Home() {
     redirect('/login')
   }
 
-  const [{ data: transactions }, profiles, { data: categories }] = await Promise.all([
-    listRecentTransactions(supabase),
-    getProfileNameMap(supabase),
-    listActiveCategories(supabase),
-  ])
+  // 餘額計算需涵蓋全部紀錄，不可用「最近 N 筆」視窗（明細的顯示上限由 board 處理）
+  const [{ data: transactions }, { data: cashMovements }, profiles, { data: categories }] =
+    await Promise.all([
+      fetchAllTransactions(supabase),
+      fetchAllCashMovements(supabase),
+      getProfileNameMap(supabase),
+      listActiveCategories(supabase),
+    ])
 
   return (
     <main style={{ minHeight: '100dvh', backgroundColor: 'var(--dmp-bg)', paddingBottom: 100 }}>
@@ -47,6 +51,7 @@ export default async function Home() {
 
       <TransactionsBoard
         initialTransactions={transactions ?? []}
+        initialCashMovements={cashMovements ?? []}
         userId={userId}
         profiles={profiles}
         categories={categories ?? []}

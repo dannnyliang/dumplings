@@ -34,6 +34,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      cash_movements: {
+        Row: {
+          amount: number
+          counterparty: string | null
+          created_at: string
+          created_by: string | null
+          date: string
+          id: string
+          kind: string
+          note: string | null
+        }
+        Insert: {
+          amount: number
+          counterparty?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          kind: string
+          note?: string | null
+        }
+        Update: {
+          amount?: number
+          counterparty?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          kind?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_movements_counterparty_fkey"
+            columns: ["counterparty"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           color: string | null
@@ -158,11 +206,8 @@ export type Database = {
           created_by: string | null
           date: string
           id: string
-          is_reimbursed: boolean
           note: string | null
-          paid_by: string
-          reimbursed_at: string | null
-          type: string
+          payment_method: string
         }
         Insert: {
           amount: number
@@ -171,11 +216,8 @@ export type Database = {
           created_by?: string | null
           date?: string
           id?: string
-          is_reimbursed?: boolean
           note?: string | null
-          paid_by?: string
-          reimbursed_at?: string | null
-          type: string
+          payment_method?: string
         }
         Update: {
           amount?: number
@@ -184,11 +226,8 @@ export type Database = {
           created_by?: string | null
           date?: string
           id?: string
-          is_reimbursed?: boolean
           note?: string | null
-          paid_by?: string
-          reimbursed_at?: string | null
-          type?: string
+          payment_method?: string
         }
         Relationships: [
           {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ReportView from '@/app/reports/ReportView'
-import type { Transaction } from '@/types/database'
+import type { CashMovement, Transaction } from '@/types/database'
 
 const mockPush = vi.fn()
 
@@ -29,17 +29,42 @@ function makeTxn(overrides: Partial<Transaction>): Transaction {
   return {
     id: 't1',
     amount: 1000,
-    type: 'expense',
     category_id: 'cat-1',
     date: '2026-04-10',
     note: null,
-    paid_by: 'shared',
-    is_reimbursed: false,
-    reimbursed_at: null,
+    payment_method: 'shared',
     created_by: 'uid-danny',
     created_at: '2026-04-10T00:00:00Z',
     ...overrides,
   }
+}
+
+function makeMovement(overrides: Partial<CashMovement>): CashMovement {
+  return {
+    id: 'm1',
+    amount: 1000,
+    date: '2026-04-10',
+    kind: 'topup',
+    counterparty: null,
+    note: null,
+    created_by: 'uid-danny',
+    created_at: '2026-04-10T00:00:00Z',
+    ...overrides,
+  }
+}
+
+function renderView(
+  transactions: Transaction[] = [],
+  cashMovements: CashMovement[] = [],
+  selectedMonth = '2026-04'
+) {
+  return render(
+    <ReportView
+      transactions={transactions}
+      cashMovements={cashMovements}
+      selectedMonth={selectedMonth}
+    />
+  )
 }
 
 describe('ReportView', () => {
@@ -49,12 +74,12 @@ describe('ReportView', () => {
 
   describe('月份顯示', () => {
     it('正確顯示選取月份', () => {
-      render(<ReportView transactions={[]} selectedMonth="2026-04" />)
+      renderView()
       expect(screen.getByText('2026 年 4 月')).toBeInTheDocument()
     })
 
     it('顯示報表標題', () => {
-      render(<ReportView transactions={[]} selectedMonth="2026-04" />)
+      renderView()
       expect(screen.getByText('報表')).toBeInTheDocument()
     })
   })
@@ -62,21 +87,21 @@ describe('ReportView', () => {
   describe('金額摘要', () => {
     it('顯示本月支出合計', () => {
       const txns = [
-        makeTxn({ id: 't1', type: 'expense', amount: 3000 }),
-        makeTxn({ id: 't2', type: 'expense', amount: 2000 }),
+        makeTxn({ id: 't1', amount: 3000 }),
+        makeTxn({ id: 't2', amount: 2000 }),
       ]
-      render(<ReportView transactions={txns} selectedMonth="2026-04" />)
+      renderView(txns)
       expect(screen.getAllByText(/5,000/).length).toBeGreaterThanOrEqual(1)
     })
 
-    it('顯示本月入帳合計', () => {
-      const txns = [makeTxn({ type: 'topup', amount: 8000, category_id: null })]
-      render(<ReportView transactions={txns} selectedMonth="2026-04" />)
+    it('顯示本月入帳合計（來自現金移動）', () => {
+      const movements = [makeMovement({ kind: 'topup', amount: 8000 })]
+      renderView([], movements)
       expect(screen.getAllByText(/8,000/).length).toBeGreaterThanOrEqual(1)
     })
 
     it('無交易時支出為 0', () => {
-      render(<ReportView transactions={[]} selectedMonth="2026-04" />)
+      renderView()
       expect(screen.getAllByText(/NT\$ 0/).length).toBeGreaterThanOrEqual(1)
     })
   })
@@ -84,21 +109,21 @@ describe('ReportView', () => {
   describe('月份導覽', () => {
     it('點擊上一個月按鈕導向正確路徑', async () => {
       const user = userEvent.setup()
-      render(<ReportView transactions={[]} selectedMonth="2026-04" />)
+      renderView()
       await user.click(screen.getByRole('button', { name: '上一個月' }))
       expect(mockPush).toHaveBeenCalledWith('/reports?month=2026-03')
     })
 
     it('點擊下一個月按鈕導向正確路徑', async () => {
       const user = userEvent.setup()
-      render(<ReportView transactions={[]} selectedMonth="2026-04" />)
+      renderView()
       await user.click(screen.getByRole('button', { name: '下一個月' }))
       expect(mockPush).toHaveBeenCalledWith('/reports?month=2026-05')
     })
 
     it('年底跨年月份計算正確', async () => {
       const user = userEvent.setup()
-      render(<ReportView transactions={[]} selectedMonth="2026-12" />)
+      renderView([], [], '2026-12')
       await user.click(screen.getByRole('button', { name: '下一個月' }))
       expect(mockPush).toHaveBeenCalledWith('/reports?month=2027-01')
     })
@@ -111,7 +136,7 @@ describe('ReportView', () => {
         makeTxn({ id: 't1', note: '午餐' }),
         makeTxn({ id: 't2', note: '咖啡' }),
       ]
-      render(<ReportView transactions={txns} selectedMonth="2026-04" />)
+      renderView(txns)
       await user.type(screen.getByPlaceholderText('搜尋備註或分類...'), '午餐')
       expect(screen.getByText('午餐')).toBeInTheDocument()
       expect(screen.queryByText('咖啡')).not.toBeInTheDocument()
@@ -123,7 +148,7 @@ describe('ReportView', () => {
         makeTxn({ id: 't1', note: '搜尋目標記錄' }),
         makeTxn({ id: 't2', note: '應被過濾掉的記錄' }),
       ]
-      render(<ReportView transactions={txns} selectedMonth="2026-04" />)
+      renderView(txns)
       await user.type(screen.getByPlaceholderText('搜尋備註或分類...'), '搜尋目標記錄')
       expect(screen.getByText('搜尋目標記錄')).toBeInTheDocument()
       expect(screen.queryByText('應被過濾掉的記錄')).not.toBeInTheDocument()
@@ -132,14 +157,14 @@ describe('ReportView', () => {
     it('無搜尋結果時顯示提示', async () => {
       const user = userEvent.setup()
       const txns = [makeTxn({ note: '午餐' })]
-      render(<ReportView transactions={txns} selectedMonth="2026-04" />)
+      renderView(txns)
       await user.type(screen.getByPlaceholderText('搜尋備註或分類...'), 'xyz')
       expect(screen.getByText('找不到符合的記錄')).toBeInTheDocument()
     })
 
     it('清除搜尋按鈕出現後可清除', async () => {
       const user = userEvent.setup()
-      render(<ReportView transactions={[]} selectedMonth="2026-04" />)
+      renderView()
       await user.type(screen.getByPlaceholderText('搜尋備註或分類...'), 'abc')
       expect(screen.getByRole('button', { name: '清除' })).toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: '清除' }))
@@ -149,7 +174,7 @@ describe('ReportView', () => {
 
   describe('空狀態', () => {
     it('本月無記錄時顯示提示', () => {
-      render(<ReportView transactions={[]} selectedMonth="2026-04" />)
+      renderView()
       expect(screen.getByText('本月沒有記錄')).toBeInTheDocument()
     })
   })

@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+# supabase branching 的 branch secrets：.env.preview 是 dotenvx 加密後的密文，需進版控
+# 讓 branching executor 取用；私鑰 .env.keys 仍被上方的 .env* 擋下，絕不可進版控
+!supabase/.env.preview
 
 # vercel
 .vercel

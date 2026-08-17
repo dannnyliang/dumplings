@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getUserId } from '@/lib/supabase/auth'
 import { currentMonth } from '@/lib/month'
 import { listTransactionsInMonth } from '@/lib/repos/transactions'
+import { listCashMovementsInMonth } from '@/lib/repos/cashMovements'
 import ReportView from './ReportView'
 
 interface ReportsPageProps {
@@ -17,11 +18,15 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const { month } = await searchParams
   const selectedMonth = month ?? currentMonth()
 
-  const { data: transactions } = await listTransactionsInMonth(supabase, selectedMonth)
+  const [{ data: transactions }, { data: cashMovements }] = await Promise.all([
+    listTransactionsInMonth(supabase, selectedMonth),
+    listCashMovementsInMonth(supabase, selectedMonth),
+  ])
 
   return (
     <ReportView
       transactions={transactions ?? []}
+      cashMovements={cashMovements ?? []}
       selectedMonth={selectedMonth}
     />
   )

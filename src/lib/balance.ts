@@ -1,57 +1,76 @@
-import { isPaidByShared } from '@/lib/paidBy'
-import type { Transaction } from '@/types/database'
+import { isPaidByJointCard, isPaidFromSharedAccount, isUserAdvance } from '@/lib/paymentMethod'
+import type { CashMovement, Transaction } from '@/types/database'
 
 /**
- * 共同帳戶的結餘與代墊規則，全專案唯一實作。
+ * 共同帳戶的餘額拆解規則，全專案唯一實作。
  *
- * - 代墊（advance）：非共同帳戶支付的支出，不論是否已還清。
- * - 未清償代墊（outstanding advance）：尚未還清的代墊，不計入共同支出。
- * - 共同支出：共同帳戶直接支付，或已還清的代墊（還清後視同共同帳戶買單）。
+ * - 現金餘額：只有現金移動與共同帳戶支付的消費會動到它。
+ * - 共同卡未出帳：累計共同卡消費 − 累計帳單扣款（不建模結帳日，見 ADR 0005）。
+ * - 待還墊付：推導值＝某人墊付的消費總額 − 已結算給他的總額，不依賴逐筆狀態。
+ * - 可動用：現金餘額 − 未出帳 − 待還墊付總額。
  */
 
-export interface Balance {
-  topupTotal: number
-  sharedExpenseTotal: number
-  balance: number
-  /** payer（user UUID 或 'credit_card'）→ 未清償代墊總額 */
-  advancesByPayer: Record<string, number>
+export interface BalanceBreakdown {
+  /** 共同帳戶餘額（帳上真的有這麼多） */
+  cashBalance: number
+  /** 共同卡未出帳（已刷、帳單未到） */
+  cardUnbilled: number
+  /** user UUID → 待還墊付金額（已結清者不出現） */
+  advancesByUser: Record<string, number>
+  advanceTotal: number
+  /** 可動用（現金餘額扣掉兩項應計負債） */
+  available: number
 }
 
-/** 這筆是否為代墊（含已還清的）。 */
-export function isAdvance(t: Transaction): boolean {
-  return t.type === 'expense' && !isPaidByShared(t.paid_by)
-}
+export function computeBalance(
+  transactions: readonly Transaction[],
+  cashMovements: readonly CashMovement[]
+): BalanceBreakdown {
+  let cashBalance = 0
+  let cardUnbilled = 0
+  const advancesByUser: Record<string, number> = {}
 
-/** 這筆是否為未清償代墊。 */
-export function isOutstandingAdvance(t: Transaction): boolean {
-  return isAdvance(t) && !t.is_reimbursed
-}
+  for (const t of transactions) {
+    const amount = Number(t.amount)
+    if (isPaidFromSharedAccount(t.payment_method)) {
+      cashBalance -= amount
+    } else if (isPaidByJointCard(t.payment_method)) {
+      cardUnbilled += amount
+    } else if (isUserAdvance(t.payment_method)) {
+      advancesByUser[t.payment_method] = (advancesByUser[t.payment_method] ?? 0) + amount
+    }
+  }
 
-/** 這筆是否計入共同支出（共同帳戶支付，或已還清的代墊）。 */
-export function isSharedSpending(t: Transaction): boolean {
-  return t.type === 'expense' && (isPaidByShared(t.paid_by) || t.is_reimbursed)
-}
+  for (const m of cashMovements) {
+    const amount = Number(m.amount)
+    switch (m.kind) {
+      case 'topup':
+        cashBalance += amount
+        break
+      case 'card_bill':
+        cashBalance -= amount
+        cardUnbilled -= amount
+        break
+      case 'settlement':
+        cashBalance -= amount
+        if (m.counterparty) {
+          advancesByUser[m.counterparty] = (advancesByUser[m.counterparty] ?? 0) - amount
+        }
+        break
+    }
+  }
 
-export function computeBalance(transactions: Transaction[]): Balance {
-  const topupTotal = transactions
-    .filter((t) => t.type === 'topup')
-    .reduce((sum, t) => sum + Number(t.amount), 0)
+  for (const [userId, amount] of Object.entries(advancesByUser)) {
+    if (amount === 0) delete advancesByUser[userId]
+  }
 
-  const sharedExpenseTotal = transactions
-    .filter(isSharedSpending)
-    .reduce((sum, t) => sum + Number(t.amount), 0)
-
-  const advancesByPayer = transactions
-    .filter(isOutstandingAdvance)
-    .reduce<Record<string, number>>(
-      (acc, t) => ({ ...acc, [t.paid_by]: (acc[t.paid_by] ?? 0) + Number(t.amount) }),
-      {}
-    )
+  const advanceTotal = Object.values(advancesByUser).reduce((sum, v) => sum + v, 0)
 
   return {
-    topupTotal,
-    sharedExpenseTotal,
-    balance: topupTotal - sharedExpenseTotal,
-    advancesByPayer,
+    cashBalance,
+    cardUnbilled,
+    advancesByUser,
+    advanceTotal,
+    available: cashBalance - cardUnbilled - advanceTotal,
   }
 }

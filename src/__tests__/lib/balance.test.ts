@@ -1,122 +1,173 @@
 import { describe, it, expect } from 'vitest'
-import { computeBalance, isAdvance, isOutstandingAdvance } from '@/lib/balance'
-import type { Transaction } from '@/types/database'
+import { computeBalance } from '@/lib/balance'
+import type { CashMovement, Transaction } from '@/types/database'
 
-function makeTransaction(overrides: Partial<Transaction>): Transaction {
+function expense(overrides: Partial<Transaction>): Transaction {
   return {
     id: 't1',
     amount: 100,
-    type: 'expense',
     category_id: null,
     date: '2026-04-01',
     note: null,
-    paid_by: 'shared',
-    is_reimbursed: false,
-    reimbursed_at: null,
+    payment_method: 'shared',
     created_by: 'uid-danny',
     created_at: '2026-04-01T00:00:00Z',
     ...overrides,
   }
 }
 
-describe('isAdvance', () => {
-  it('is true for a non-shared expense', () => {
-    expect(isAdvance(makeTransaction({ paid_by: 'uid-danny' }))).toBe(true)
+function movement(overrides: Partial<CashMovement>): CashMovement {
+  return {
+    id: 'm1',
+    amount: 100,
+    date: '2026-04-01',
+    kind: 'topup',
+    counterparty: null,
+    note: null,
+    created_by: 'uid-danny',
+    created_at: '2026-04-01T00:00:00Z',
+    ...overrides,
+  }
+}
+
+describe('computeBalance：共同帳戶餘額（現金）', () => {
+  it('入帳增加餘額，共同帳戶支出立即扣款', () => {
+    const { cashBalance } = computeBalance(
+      [expense({ amount: 3000, payment_method: 'shared' })],
+      [movement({ kind: 'topup', amount: 10000 })]
+    )
+    expect(cashBalance).toBe(7000)
   })
 
-  it('is true for a credit-card expense', () => {
-    expect(isAdvance(makeTransaction({ paid_by: 'credit_card' }))).toBe(true)
+  it('共同卡與墊付的消費不影響現金餘額', () => {
+    const { cashBalance } = computeBalance(
+      [
+        expense({ amount: 2500, payment_method: 'uid-peiyu' }),
+        expense({ amount: 1200, payment_method: 'joint_card' }),
+      ],
+      [movement({ kind: 'topup', amount: 10000 })]
+    )
+    expect(cashBalance).toBe(10000)
   })
 
-  it('is false for a shared expense', () => {
-    expect(isAdvance(makeTransaction({ paid_by: 'shared' }))).toBe(false)
-  })
-
-  it('is false for a topup regardless of payer', () => {
-    expect(isAdvance(makeTransaction({ type: 'topup', paid_by: 'uid-danny' }))).toBe(false)
-  })
-
-  it('stays true after the advance is reimbursed', () => {
-    expect(isAdvance(makeTransaction({ paid_by: 'uid-danny', is_reimbursed: true }))).toBe(true)
+  it('帳單扣款與結算於其日期自現金餘額扣除', () => {
+    const { cashBalance } = computeBalance(
+      [],
+      [
+        movement({ kind: 'topup', amount: 10000 }),
+        movement({ kind: 'card_bill', amount: 3000 }),
+        movement({ kind: 'settlement', amount: 2000, counterparty: 'uid-peiyu' }),
+      ]
+    )
+    expect(cashBalance).toBe(5000)
   })
 })
 
-describe('isOutstandingAdvance', () => {
-  it('is true for an unreimbursed non-shared expense', () => {
-    expect(isOutstandingAdvance(makeTransaction({ paid_by: 'uid-danny' }))).toBe(true)
+describe('computeBalance：共同卡未出帳', () => {
+  it('等於累計共同卡消費減累計帳單扣款', () => {
+    const { cardUnbilled } = computeBalance(
+      [
+        expense({ amount: 1200, payment_method: 'joint_card' }),
+        expense({ amount: 800, payment_method: 'joint_card' }),
+        expense({ amount: 999, payment_method: 'shared' }),
+      ],
+      [movement({ kind: 'card_bill', amount: 500 })]
+    )
+    expect(cardUnbilled).toBe(1500)
   })
 
-  it('is false once the advance is reimbursed', () => {
-    expect(isOutstandingAdvance(makeTransaction({ paid_by: 'uid-danny', is_reimbursed: true }))).toBe(false)
-  })
-
-  it('is false for shared expenses', () => {
-    expect(isOutstandingAdvance(makeTransaction({ paid_by: 'shared' }))).toBe(false)
+  it('帳單全數扣款後為 0', () => {
+    const { cardUnbilled } = computeBalance(
+      [expense({ amount: 1000, payment_method: 'joint_card' })],
+      [movement({ kind: 'card_bill', amount: 1000 })]
+    )
+    expect(cardUnbilled).toBe(0)
   })
 })
 
-describe('computeBalance', () => {
-  it('sums topups into topupTotal', () => {
-    const result = computeBalance([
-      makeTransaction({ type: 'topup', amount: 10000 }),
-      makeTransaction({ type: 'topup', amount: 5000 }),
-    ])
-    expect(result.topupTotal).toBe(15000)
+describe('computeBalance：待還墊付（推導值）', () => {
+  it('等於某人墊付總額減去已結算給他的總額', () => {
+    const { advancesByUser } = computeBalance(
+      [
+        expense({ amount: 20000, payment_method: 'uid-danny' }),
+        expense({ amount: 5000, payment_method: 'uid-peiyu' }),
+      ],
+      [movement({ kind: 'settlement', amount: 15000, counterparty: 'uid-danny' })]
+    )
+    expect(advancesByUser).toEqual({ 'uid-danny': 5000, 'uid-peiyu': 5000 })
   })
 
-  it('counts shared expenses and reimbursed advances as shared spending', () => {
-    const result = computeBalance([
-      makeTransaction({ amount: 300, paid_by: 'shared' }),
-      makeTransaction({ amount: 200, paid_by: 'uid-danny', is_reimbursed: true }),
-    ])
-    expect(result.sharedExpenseTotal).toBe(500)
+  it('部分結算後差額保留於待還墊付', () => {
+    const { advancesByUser } = computeBalance(
+      [expense({ amount: 20000, payment_method: 'uid-danny' })],
+      [movement({ kind: 'settlement', amount: 15000, counterparty: 'uid-danny' })]
+    )
+    expect(advancesByUser['uid-danny']).toBe(5000)
   })
 
-  it('excludes outstanding advances from shared spending', () => {
-    const result = computeBalance([
-      makeTransaction({ amount: 300, paid_by: 'shared' }),
-      makeTransaction({ amount: 999, paid_by: 'uid-danny', is_reimbursed: false }),
-    ])
-    expect(result.sharedExpenseTotal).toBe(300)
+  it('結清後該使用者自待還墊付中消失', () => {
+    const { advancesByUser } = computeBalance(
+      [expense({ amount: 3000, payment_method: 'uid-peiyu' })],
+      [movement({ kind: 'settlement', amount: 3000, counterparty: 'uid-peiyu' })]
+    )
+    expect(advancesByUser).toEqual({})
+  })
+})
+
+describe('computeBalance：可動用', () => {
+  it('等於現金餘額減未出帳與待還墊付總額', () => {
+    const result = computeBalance(
+      [
+        expense({ amount: 12000, payment_method: 'joint_card' }),
+        expense({ amount: 15000, payment_method: 'uid-danny' }),
+        expense({ amount: 5000, payment_method: 'uid-peiyu' }),
+      ],
+      [movement({ kind: 'topup', amount: 50000 })]
+    )
+    expect(result.cashBalance).toBe(50000)
+    expect(result.advanceTotal).toBe(20000)
+    expect(result.available).toBe(18000)
   })
 
-  it('computes balance as topups minus shared spending', () => {
-    const result = computeBalance([
-      makeTransaction({ type: 'topup', amount: 1000 }),
-      makeTransaction({ amount: 300, paid_by: 'shared' }),
-    ])
-    expect(result.balance).toBe(700)
+  it('無未出帳亦無待還墊付時，可動用等於現金餘額', () => {
+    const result = computeBalance(
+      [expense({ amount: 3000, payment_method: 'shared' })],
+      [movement({ kind: 'topup', amount: 10000 })]
+    )
+    expect(result.cardUnbilled).toBe(0)
+    expect(result.advanceTotal).toBe(0)
+    expect(result.available).toBe(result.cashBalance)
+  })
+})
+
+describe('computeBalance：邊界', () => {
+  it('容忍資料庫以字串回傳的金額', () => {
+    const { cashBalance } = computeBalance(
+      [],
+      [movement({ kind: 'topup', amount: '1000' as unknown as number })]
+    )
+    expect(cashBalance).toBe(1000)
   })
 
-  it('groups outstanding advances by payer', () => {
-    const result = computeBalance([
-      makeTransaction({ amount: 100, paid_by: 'uid-danny' }),
-      makeTransaction({ amount: 50, paid_by: 'uid-danny' }),
-      makeTransaction({ amount: 200, paid_by: 'credit_card' }),
-    ])
-    expect(result.advancesByPayer).toEqual({ 'uid-danny': 150, credit_card: 200 })
-  })
-
-  it('omits reimbursed advances from advancesByPayer', () => {
-    const result = computeBalance([
-      makeTransaction({ amount: 100, paid_by: 'uid-danny', is_reimbursed: true }),
-    ])
-    expect(result.advancesByPayer).toEqual({})
-  })
-
-  it('coerces string amounts from the database', () => {
-    const result = computeBalance([
-      makeTransaction({ type: 'topup', amount: '1000' as unknown as number }),
-    ])
-    expect(result.topupTotal).toBe(1000)
-  })
-
-  it('returns zeros for an empty list', () => {
-    expect(computeBalance([])).toEqual({
-      topupTotal: 0,
-      sharedExpenseTotal: 0,
-      balance: 0,
-      advancesByPayer: {},
+  it('空資料回傳全零', () => {
+    expect(computeBalance([], [])).toEqual({
+      cashBalance: 0,
+      cardUnbilled: 0,
+      advancesByUser: {},
+      advanceTotal: 0,
+      available: 0,
     })
+  })
+
+  it('結算對象已不存在（counterparty 為 null）時仍扣現金，不影響任何人的待還', () => {
+    const result = computeBalance(
+      [],
+      [
+        movement({ kind: 'topup', amount: 10000 }),
+        movement({ kind: 'settlement', amount: 2000, counterparty: null }),
+      ]
+    )
+    expect(result.cashBalance).toBe(8000)
+    expect(result.advancesByUser).toEqual({})
   })
 })

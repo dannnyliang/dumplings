@@ -7,8 +7,8 @@ import dynamic from 'next/dynamic'
 import Icon from '@/components/ui/Icon'
 import { formatMoney, formatSignedMoney } from '@/lib/money'
 import { formatMonthLabel, shiftMonth } from '@/lib/month'
-import { computeMonthlySummary, filterTransactions } from '@/lib/report'
-import type { Transaction } from '@/types/database'
+import { computeMonthTotals, computeMonthlySummary, filterTransactions } from '@/lib/report'
+import type { CashMovement, Transaction } from '@/types/database'
 
 const ChartIsland = dynamic(() => import('./ChartIsland'), {
   ssr: false,
@@ -19,14 +19,16 @@ const ChartIsland = dynamic(() => import('./ChartIsland'), {
 
 interface ReportViewProps {
   transactions: Transaction[]
+  cashMovements: CashMovement[]
   selectedMonth: string
 }
 
-export default function ReportView({ transactions, selectedMonth }: ReportViewProps) {
+export default function ReportView({ transactions, cashMovements, selectedMonth }: ReportViewProps) {
   const router = useRouter()
   const [search, setSearch] = useState('')
 
-  const { totalExpense, totalTopup, pieData } = computeMonthlySummary(transactions)
+  const { totalExpense, pieData } = computeMonthlySummary(transactions)
+  const { topupTotal } = computeMonthTotals(transactions, cashMovements, selectedMonth)
   const filtered = filterTransactions(transactions, search)
 
   return (
@@ -71,7 +73,7 @@ export default function ReportView({ transactions, selectedMonth }: ReportViewPr
           <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: '14px 16px', boxShadow: 'var(--dmp-shadow-soft)' }}>
             <p style={{ fontSize: 11, color: 'var(--dmp-text-muted)', fontWeight: 500, margin: '0 0 4px' }}>本月入帳</p>
             <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--dmp-income)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
-              {formatMoney(totalTopup)}
+              {formatMoney(topupTotal)}
             </p>
           </div>
         </div>
@@ -103,14 +105,14 @@ export default function ReportView({ transactions, selectedMonth }: ReportViewPr
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div>
                       <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--dmp-text)', margin: 0 }}>
-                        {t.category?.name ?? (t.type === 'topup' ? '入帳' : '支出')}
+                        {t.category?.name ?? '支出'}
                       </p>
                       {t.note && <p style={{ fontSize: 12, color: 'var(--dmp-text-muted)', margin: '2px 0 0' }}>{t.note}</p>}
                       <p style={{ fontSize: 11, color: 'var(--dmp-text-muted)', margin: '2px 0 0', fontFamily: '"SF Mono", ui-monospace, monospace' }}>{t.date}</p>
                     </div>
                   </div>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: t.type === 'topup' ? 'var(--dmp-income)' : 'var(--dmp-expense)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
-                    {formatSignedMoney(t.amount, t.type)}
+                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--dmp-expense)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
+                    {formatSignedMoney(t.amount, 'out')}
                   </p>
                 </li>
               ))}
