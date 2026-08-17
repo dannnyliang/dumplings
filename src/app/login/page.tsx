@@ -1,9 +1,81 @@
 'use client'
 
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import DumplingMark from '@/components/ui/DumplingMark'
 
+/**
+ * Preview 部署改以帳密登入測試帳號（帳號由 supabase/seed.sql 建立）。
+ * 原因：preview branch 的 Supabase 專案 ref 每個分支都不同，Google OAuth 的
+ * redirect URI 無法事先登記，OAuth 在 preview 上註定失敗且無法自動化。
+ */
+const PREVIEW_ACCOUNTS = ['preview-danny@dumplings.test', 'preview-peiyu@dumplings.test']
+
+function PreviewPasswordLogin() {
+  const router = useRouter()
+  const [email, setEmail] = useState(PREVIEW_ACCOUNTS[0])
+  const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    const supabase = createClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      setError(signInError.message)
+      setSubmitting(false)
+      return
+    }
+    router.push('/')
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-2 border-t border-[rgba(60,40,20,0.12)] pt-5">
+      <p className="m-0 text-xs font-semibold tracking-[0.5px] text-[#9B8A76] uppercase">
+        Preview 測試登入
+      </p>
+      <select
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        aria-label="測試帳號"
+        className="w-full rounded-[10px] border border-[rgba(60,40,20,0.12)] bg-white px-3 py-2.5 text-sm text-[#2B1D12] outline-none"
+      >
+        {PREVIEW_ACCOUNTS.map((account) => (
+          <option key={account} value={account}>
+            {account}
+          </option>
+        ))}
+      </select>
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="密碼"
+        required
+        className="w-full rounded-[10px] border border-[rgba(60,40,20,0.12)] bg-white px-3 py-2.5 text-sm text-[#2B1D12] outline-none"
+      />
+      {error && <p className="m-0 text-xs text-[#B83B3B]">{error}</p>}
+      <button
+        type="submit"
+        disabled={submitting || !password}
+        className="w-full cursor-pointer rounded-[10px] border-none bg-[#2B1D12] py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {submitting ? '登入中…' : '以測試帳號登入'}
+      </button>
+      <p className="m-0 text-[11px] leading-relaxed text-[#9B8A76]">
+        密碼見 supabase/seed.sql（此環境僅有測試資料）
+      </p>
+    </form>
+  )
+}
+
 export default function LoginPage() {
+  const isPreview = process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview'
+
   async function handleGoogleLogin() {
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithOAuth({
@@ -42,6 +114,8 @@ export default function LoginPage() {
           </svg>
           使用 Google 帳號登入
         </button>
+
+        {isPreview && <PreviewPasswordLogin />}
       </div>
     </main>
   )
