@@ -91,6 +91,8 @@ npm run pr:trigger    # 分支已動過 supabase/ 就自動跳過
 
 它會寫 `supabase/.preview-trigger` 並補一筆 `chore: 觸發 Supabase preview branch`。這個檔案的內容沒有意義，不要手動改。
 
+**順序不能顛倒**：preview branch 是在 PR 被開啟的當下建立的，`supabase/` 的 diff 也是那一刻判定的。PR 開了之後才補 trigger commit，Supabase 只會回 `skipped — This git branch is not associated with any Supabase Branch`，唯一的救法是把 PR 關掉再重開（`gh pr close <n> && gh pr reopen <n>`）。
+
 ## Architecture
 
 **Stack:** Next.js 16 (App Router) + React 19 + TypeScript + Supabase + Tailwind CSS v4 + Recharts + Vitest

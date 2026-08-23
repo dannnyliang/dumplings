@@ -9,6 +9,9 @@
 #
 # 純前端的分支因此要靠 supabase/.preview-trigger 製造一筆 `supabase/` 變動。
 # 已經動過 supabase/ 的分支不需要，這支腳本會自己判斷並跳過。
+#
+# 時機很重要：branch 是在 PR「被開啟」的當下建立的，diff 也是那一刻判定的。
+# PR 開了之後才補 trigger commit 沒有用，必須把 PR 關掉再重開。
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -50,3 +53,10 @@ Vercel preview 就拿不到 Supabase 的 URL 與 anon key 而整站 500。
 
 echo "已建立 trigger commit："
 git --no-pager log -1 --oneline
+
+if gh pr view --json state --jq .state >/dev/null 2>&1; then
+  echo
+  echo "注意：這個分支已經有 PR 了。preview branch 只在 PR 開啟的當下建立，"
+  echo "光是 push 這筆 commit 不會讓 Supabase 補建 branch——push 之後要把 PR"
+  echo "關掉再重開（gh pr close <n> && gh pr reopen <n>）。"
+fi
