@@ -47,26 +47,32 @@ function TransactionRow({
   return (
     <li
       onClick={onEdit}
-      className="border-line flex cursor-pointer items-center justify-between px-4 py-3 first:border-t-0 [&:not(:first-child)]:border-t"
+      className="border-line flex cursor-pointer items-center justify-between gap-3 px-4 py-3 first:border-t-0 [&:not(:first-child)]:border-t"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <CategoryAvatar
           emoji={transaction.category?.emoji ?? null}
           color={transaction.category?.color ?? null}
           size={40}
         />
-        <div>
-          <p className="text-text m-0 text-sm font-medium">
+        <div className="min-w-0">
+          <p className="text-text m-0 truncate text-sm font-medium">
             {transaction.category?.name ?? '支出'}
           </p>
-          {transaction.note && <p className="text-muted mt-0.5 mb-0 text-xs">{transaction.note}</p>}
+          {transaction.note && (
+            <p className="text-muted mt-0.5 mb-0 line-clamp-2 text-xs break-words">
+              {transaction.note}
+            </p>
+          )}
         </div>
       </div>
-      <div className="text-right">
-        <p className="text-expense m-0 font-mono text-sm font-semibold">
+      <div className="shrink-0 text-right">
+        <p className="text-expense m-0 font-mono text-sm font-semibold whitespace-nowrap">
           {formatSignedMoney(transaction.amount, 'out')}
         </p>
-        {methodTag && <p className="text-accent mt-0.5 mb-0 text-[11px]">{methodTag}</p>}
+        {methodTag && (
+          <p className="text-accent mt-0.5 mb-0 text-[11px] whitespace-nowrap">{methodTag}</p>
+        )}
       </div>
     </li>
   )
@@ -85,19 +91,23 @@ function MovementRow({
   return (
     <li
       onClick={onEdit}
-      className="border-line flex cursor-pointer items-center justify-between px-4 py-3 first:border-t-0 [&:not(:first-child)]:border-t"
+      className="border-line flex cursor-pointer items-center justify-between gap-3 px-4 py-3 first:border-t-0 [&:not(:first-child)]:border-t"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <CategoryAvatar emoji={MOVEMENT_EMOJI[movement.kind]} color={null} size={40} />
-        <div>
-          <p className="text-text m-0 text-sm font-medium">
+        <div className="min-w-0">
+          <p className="text-text m-0 truncate text-sm font-medium">
             {cashMovementLabel(movement, profiles)}
           </p>
-          {movement.note && <p className="text-muted mt-0.5 mb-0 text-xs">{movement.note}</p>}
+          {movement.note && (
+            <p className="text-muted mt-0.5 mb-0 line-clamp-2 text-xs break-words">
+              {movement.note}
+            </p>
+          )}
         </div>
       </div>
       <p
-        className={`m-0 font-mono text-sm font-semibold ${
+        className={`m-0 shrink-0 font-mono text-sm font-semibold whitespace-nowrap ${
           direction === 'in' ? 'text-income' : 'text-expense'
         }`}
       >

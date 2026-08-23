@@ -101,17 +101,24 @@ export default function ReportView({
           <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, overflow: 'hidden', boxShadow: 'var(--dmp-shadow-soft)' }}>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {filtered.map((t, idx) => (
-                <li key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: idx > 0 ? '1px solid var(--dmp-border)' : 'none' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div>
-                      <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--dmp-text)', margin: 0 }}>
-                        {t.category?.name ?? '支出'}
+                <li
+                  key={t.id}
+                  className={`flex items-center justify-between gap-3 px-4 py-3 ${
+                    idx > 0 ? 'border-line border-t' : ''
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-text m-0 truncate text-sm font-medium">
+                      {t.category?.name ?? '支出'}
+                    </p>
+                    {t.note && (
+                      <p className="text-muted mt-0.5 mb-0 line-clamp-2 text-xs break-words">
+                        {t.note}
                       </p>
-                      {t.note && <p style={{ fontSize: 12, color: 'var(--dmp-text-muted)', margin: '2px 0 0' }}>{t.note}</p>}
-                      <p style={{ fontSize: 11, color: 'var(--dmp-text-muted)', margin: '2px 0 0', fontFamily: '"SF Mono", ui-monospace, monospace' }}>{t.date}</p>
-                    </div>
+                    )}
+                    <p className="text-muted mt-0.5 mb-0 font-mono text-[11px]">{t.date}</p>
                   </div>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--dmp-expense)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
+                  <p className="text-expense m-0 shrink-0 font-mono text-sm font-semibold whitespace-nowrap">
                     {formatSignedMoney(t.amount, 'out')}
                   </p>
                 </li>
