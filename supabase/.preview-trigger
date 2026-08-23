@@ -1,0 +1,4 @@
+# 這個檔案唯一的用途，是讓 PR 的 diff 裡有一筆 `supabase/` 變動，
+# 好讓 Supabase GitHub integration 為這個 PR 建立 preview branch。
+# 內容沒有任何意義，由 `npm run pr:trigger` 維護，不要手動改。
+feat/report-comparison-and-nav cf22840
