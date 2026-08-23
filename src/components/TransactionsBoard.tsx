@@ -13,6 +13,7 @@ import {
   type LedgerMutators,
 } from './TransactionsMutationContext'
 import { computeBalance } from '@/lib/balance'
+import { sortCategoriesByUsage } from '@/lib/categoryUsage'
 import { currentMonth } from '@/lib/month'
 import { computeMonthTotals } from '@/lib/report'
 import { applyLedgerMutation, compareLedgerDesc } from '@/lib/transactionsOptimistic'
@@ -95,6 +96,9 @@ export default function TransactionsBoard({
   const breakdown = computeBalance(transactions, cashMovements)
   const monthTotals = computeMonthTotals(transactions, cashMovements, currentMonth())
 
+  // 記帳表單的分類 chip 依使用頻率排序，常用的少捲一段；吃樂觀更新後的紀錄，剛記完立即反映。
+  const categoriesByUsage = sortCategoriesByUsage(categories, transactions)
+
   const items: LedgerItem[] = [
     ...transactions.map((t) => ({ kind: 'transaction' as const, record: t })),
     ...cashMovements.map((m) => ({ kind: 'movement' as const, record: m })),
@@ -126,11 +130,16 @@ export default function TransactionsBoard({
           <div className="mb-3 flex items-center justify-between">
             <span className="text-text text-[15px] font-semibold">最近交易</span>
           </div>
-          <TransactionList items={items} userId={userId} profiles={profiles} categories={categories} />
+          <TransactionList
+            items={items}
+            userId={userId}
+            profiles={profiles}
+            categories={categoriesByUsage}
+          />
         </div>
       </div>
 
-      <AddTransactionButton userId={userId} categories={categories} />
+      <AddTransactionButton userId={userId} categories={categoriesByUsage} />
 
       {movementDraft && (
         <CashMovementFormModal
