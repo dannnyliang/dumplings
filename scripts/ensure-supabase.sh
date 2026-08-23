@@ -55,4 +55,13 @@ if supabase status >/dev/null 2>&1; then
 fi
 
 echo "本地 Supabase 未運行，正在啟動（首次啟動需要較久）..."
+if supabase start; then
+  exit 0
+fi
+
+# 關掉 Docker Desktop 會讓整組容器停在 exited（收到 SIGKILL，退出碼 137），
+# 但容器本身還在。此時 supabase start 會判定「already running」而拒絕啟動，
+# 必須先 stop 清掉殘留的容器。stop 預設保留資料 volume，不會遺失本地資料。
+echo "啟動失敗，清除殘留的容器後重試..."
+supabase stop || true
 supabase start
