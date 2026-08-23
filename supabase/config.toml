@@ -144,8 +144,10 @@ max_catalogs = 2
 # [storage.analytics.buckets.my-warehouse]
 
 # Store vector embeddings in S3 for large and durable datasets
+# 關閉：Vector Buckets 是付費功能，branching executor 會把這段套到 preview
+# branch，免費方案的 branch 會收到 402 而 migration 失敗。專案沒有用到向量儲存。
 [storage.vector]
-enabled = true
+enabled = false
 max_buckets = 10
 max_indexes = 5
 
