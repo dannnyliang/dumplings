@@ -3,32 +3,32 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import dynamic from 'next/dynamic'
 import Icon from '@/components/ui/Icon'
 import { formatMoney, formatSignedMoney } from '@/lib/money'
 import { formatMonthLabel, shiftMonth } from '@/lib/month'
-import { computeMonthTotals, computeMonthlySummary, filterTransactions } from '@/lib/report'
+import { compareWithPreviousAverage, computeMonthTotals, filterTransactions } from '@/lib/report'
+import CategoryComparisonList from './CategoryComparisonList'
 import type { CashMovement, Transaction } from '@/types/database'
-
-const ChartIsland = dynamic(() => import('./ChartIsland'), {
-  ssr: false,
-  loading: () => (
-    <div className="animate-pulse rounded-2xl bg-[var(--dmp-surface-alt)]" style={{ height: 280 }} />
-  ),
-})
 
 interface ReportViewProps {
   transactions: Transaction[]
   cashMovements: CashMovement[]
+  /** 前幾個月的消費紀錄（每月一組），作為分類比較的基準 */
+  previousByMonth: Transaction[][]
   selectedMonth: string
 }
 
-export default function ReportView({ transactions, cashMovements, selectedMonth }: ReportViewProps) {
+export default function ReportView({
+  transactions,
+  cashMovements,
+  previousByMonth,
+  selectedMonth,
+}: ReportViewProps) {
   const router = useRouter()
   const [search, setSearch] = useState('')
 
-  const { totalExpense, pieData } = computeMonthlySummary(transactions)
-  const { topupTotal } = computeMonthTotals(transactions, cashMovements, selectedMonth)
+  const { expenseTotal, topupTotal } = computeMonthTotals(transactions, cashMovements, selectedMonth)
+  const comparisons = compareWithPreviousAverage(transactions, previousByMonth)
   const filtered = filterTransactions(transactions, search)
 
   return (
@@ -67,7 +67,7 @@ export default function ReportView({ transactions, cashMovements, selectedMonth 
           <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: '14px 16px', boxShadow: 'var(--dmp-shadow-soft)' }}>
             <p style={{ fontSize: 11, color: 'var(--dmp-text-muted)', fontWeight: 500, margin: '0 0 4px' }}>本月支出</p>
             <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--dmp-expense)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
-              {formatMoney(totalExpense)}
+              {formatMoney(expenseTotal)}
             </p>
           </div>
           <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: '14px 16px', boxShadow: 'var(--dmp-shadow-soft)' }}>
@@ -78,8 +78,8 @@ export default function ReportView({ transactions, cashMovements, selectedMonth 
           </div>
         </div>
 
-        {/* pie chart (lazy-loaded recharts island) */}
-        <ChartIsland pieData={pieData} totalExpense={totalExpense} />
+        {/* 分類支出與前期平均的比較（純文字，spec：圖表非必要） */}
+        <CategoryComparisonList comparisons={comparisons} />
 
         {/* search */}
         <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, boxShadow: 'var(--dmp-shadow-soft)' }}>
@@ -101,17 +101,24 @@ export default function ReportView({ transactions, cashMovements, selectedMonth 
           <div style={{ backgroundColor: 'var(--dmp-surface)', borderRadius: 20, overflow: 'hidden', boxShadow: 'var(--dmp-shadow-soft)' }}>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {filtered.map((t, idx) => (
-                <li key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: idx > 0 ? '1px solid var(--dmp-border)' : 'none' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div>
-                      <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--dmp-text)', margin: 0 }}>
-                        {t.category?.name ?? '支出'}
+                <li
+                  key={t.id}
+                  className={`flex items-center justify-between gap-3 px-4 py-3 ${
+                    idx > 0 ? 'border-line border-t' : ''
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-text m-0 truncate text-sm font-medium">
+                      {t.category?.name ?? '支出'}
+                    </p>
+                    {t.note && (
+                      <p className="text-muted mt-0.5 mb-0 line-clamp-2 text-xs break-words">
+                        {t.note}
                       </p>
-                      {t.note && <p style={{ fontSize: 12, color: 'var(--dmp-text-muted)', margin: '2px 0 0' }}>{t.note}</p>}
-                      <p style={{ fontSize: 11, color: 'var(--dmp-text-muted)', margin: '2px 0 0', fontFamily: '"SF Mono", ui-monospace, monospace' }}>{t.date}</p>
-                    </div>
+                    )}
+                    <p className="text-muted mt-0.5 mb-0 font-mono text-[11px]">{t.date}</p>
                   </div>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--dmp-expense)', margin: 0, fontFamily: '"SF Mono", ui-monospace, monospace' }}>
+                  <p className="text-expense m-0 shrink-0 font-mono text-sm font-semibold whitespace-nowrap">
                     {formatSignedMoney(t.amount, 'out')}
                   </p>
                 </li>

@@ -16,15 +16,6 @@ vi.mock('next/link', () => ({
   ),
 }))
 
-vi.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  PieChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Pie: () => null,
-  Cell: () => null,
-  Tooltip: () => null,
-  Legend: () => null,
-}))
-
 function makeTxn(overrides: Partial<Transaction>): Transaction {
   return {
     id: 't1',
@@ -56,15 +47,27 @@ function makeMovement(overrides: Partial<CashMovement>): CashMovement {
 function renderView(
   transactions: Transaction[] = [],
   cashMovements: CashMovement[] = [],
-  selectedMonth = '2026-04'
+  selectedMonth = '2026-04',
+  previousByMonth: Transaction[][] = []
 ) {
   return render(
     <ReportView
       transactions={transactions}
       cashMovements={cashMovements}
+      previousByMonth={previousByMonth}
       selectedMonth={selectedMonth}
     />
   )
+}
+
+const foodCategory = {
+  id: 'cat-food',
+  name: '餐飲',
+  emoji: null,
+  color: null,
+  created_by: null,
+  is_active: true,
+  created_at: '2026-01-01T00:00:00Z',
 }
 
 describe('ReportView', () => {
@@ -169,6 +172,40 @@ describe('ReportView', () => {
       expect(screen.getByRole('button', { name: '清除' })).toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: '清除' }))
       expect(screen.queryByRole('button', { name: '清除' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('分類比較', () => {
+    it('顯示分類金額與前三月平均的差異文案', () => {
+      const current = [makeTxn({ amount: 12400, category_id: foodCategory.id, category: foodCategory })]
+      const previous = [
+        [makeTxn({ id: 'p1', amount: 9000, date: '2026-03-10', category_id: foodCategory.id, category: foodCategory })],
+        [makeTxn({ id: 'p2', amount: 9200, date: '2026-02-10', category_id: foodCategory.id, category: foodCategory })],
+        [makeTxn({ id: 'p3', amount: 9400, date: '2026-01-10', category_id: foodCategory.id, category: foodCategory })],
+      ]
+      renderView(current, [], '2026-04', previous)
+      expect(screen.getByText('比前三月平均多 NT$ 3,200')).toBeInTheDocument()
+    })
+
+    it('差異在門檻內顯示持平且不顯示差額', () => {
+      const current = [makeTxn({ amount: 9300, category_id: foodCategory.id, category: foodCategory })]
+      const previous = [
+        [makeTxn({ id: 'p1', amount: 9200, date: '2026-03-10', category_id: foodCategory.id, category: foodCategory })],
+      ]
+      renderView(current, [], '2026-04', previous)
+      expect(screen.getByText('與前 1 月平均持平')).toBeInTheDocument()
+      expect(screen.queryByText(/比前.*平均/)).not.toBeInTheDocument()
+    })
+
+    it('沒有前期資料時如實標示', () => {
+      const current = [makeTxn({ amount: 1200, category_id: foodCategory.id, category: foodCategory })]
+      renderView(current, [], '2026-04', [])
+      expect(screen.getByText('尚無前期資料可比較')).toBeInTheDocument()
+    })
+
+    it('本月無任何分類時不渲染比較區塊', () => {
+      renderView()
+      expect(screen.queryByText('支出分類')).not.toBeInTheDocument()
     })
   })
 

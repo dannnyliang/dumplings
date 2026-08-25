@@ -1,4 +1,5 @@
 import { monthOf } from '@/lib/month'
+import { formatMoney } from '@/lib/money'
 import type { CashMovement, Transaction } from '@/types/database'
 
 /**
@@ -124,6 +125,19 @@ export function compareWithPreviousAverage(
       }
     })
     .sort((a, b) => b.amount - a.amount)
+}
+
+/**
+ * 分類比較的顯示文案；差異的解讀（持平／多／少、基準月份數）只在這裡轉成文字。
+ * 持平時依 spec 不顯示具體差額；基準不足三個月時標示實際月份數。
+ */
+export function comparisonText(comparison: CategoryComparison): string {
+  const { delta, isFlat, baselineMonths } = comparison
+  if (baselineMonths === 0) return '尚無前期資料可比較'
+  const baseLabel = baselineMonths === 3 ? '前三月平均' : `前 ${baselineMonths} 月平均`
+  if (isFlat) return `與${baseLabel}持平`
+  const direction = delta > 0 ? '多' : '少'
+  return `比${baseLabel}${direction} ${formatMoney(Math.round(Math.abs(delta)))}`
 }
 
 /** 以備註或分類名稱做不分大小寫的搜尋；空白查詢回傳全部。 */

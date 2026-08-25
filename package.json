@@ -18,6 +18,7 @@
     "db:ensure": "bash scripts/ensure-supabase.sh",
     "db:stop": "supabase stop",
     "db:reset": "npm run db:ensure && supabase db reset && docker restart $(docker ps -q -f name=supabase_kong)",
+    "pr:trigger": "bash scripts/preview-trigger.sh",
     "verify": "npm run lint && npm run typecheck && npm run types:check && npm test && npm run e2e"
   },
   "dependencies": {
@@ -25,8 +26,7 @@
     "@supabase/supabase-js": "^2.103.3",
     "next": "16.2.4",
     "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "recharts": "^3.8.1"
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

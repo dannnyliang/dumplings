@@ -81,6 +81,18 @@ type：`feat` / `fix` / `refactor` / `docs` / `test` / `chore` / `perf` / `ci`
 - body 寫清楚成因與影響，特別是修 bug 時要說明它為何沒被更早發現
 - PR 說明要涵蓋整個分支的 commit，不是只有最後一個
 
+**每個 PR 都必須含有 `supabase/` 的變動**，否則 Supabase GitHub integration 會跳過建立 preview branch（check 顯示 `skipped — No changes detected in supabase directory`），Vercel preview 就拿不到 `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`，`src/proxy.ts` 建 client 時丟錯，整站 500。關掉這個限制需要 Supabase 付費方案。
+
+所以**開 PR 前一律先跑**：
+
+```bash
+npm run pr:trigger    # 分支已動過 supabase/ 就自動跳過
+```
+
+它會寫 `supabase/.preview-trigger` 並補一筆 `chore: 觸發 Supabase preview branch`。這個檔案的內容沒有意義，不要手動改。
+
+**順序不能顛倒**：preview branch 是在 PR 被開啟的當下建立的，`supabase/` 的 diff 也是那一刻判定的。PR 開了之後才補 trigger commit，Supabase 只會回 `skipped — This git branch is not associated with any Supabase Branch`，唯一的救法是把 PR 關掉再重開（`gh pr close <n> && gh pr reopen <n>`）。
+
 ## Architecture
 
 **Stack:** Next.js 16 (App Router) + React 19 + TypeScript + Supabase + Tailwind CSS v4 + Recharts + Vitest
