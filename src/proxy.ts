@@ -40,6 +40,8 @@ export const config = {
   matcher: [
     // 排除公開檔案：sw.js 與 manifest.json 必須可直接取得（未登入也要能載），
     // 否則 auth redirect 會讓 service worker 註冊拿到 /login HTML 而失敗。
-    '/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)',
+    // api/keepalive 是 Vercel Cron 打的端點，沒有 cookie，靠 CRON_SECRET 自行驗證；
+    // 不排除的話會被導去 /login，永遠碰不到資料庫。
+    '/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.json|api/keepalive|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)',
   ],
 }
