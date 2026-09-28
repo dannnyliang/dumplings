@@ -25,6 +25,9 @@ export const LOCAL_SERVICE_ROLE_KEY =
  */
 export const BASE_URL = 'http://localhost:3100'
 
+/** e2e 打 /api/keepalive 用的密鑰，非機密；與 .env.local 的值一致以便沿用既有 dev server。 */
+export const E2E_CRON_SECRET = 'e2e-cron-secret'
+
 export default defineConfig({
   testDir: './e2e',
   globalSetup: './e2e/global-setup.ts',
@@ -55,6 +58,7 @@ export default defineConfig({
     env: {
       NEXT_PUBLIC_SUPABASE_URL: LOCAL_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: LOCAL_ANON_KEY,
+      CRON_SECRET: E2E_CRON_SECRET,
     },
   },
 })
