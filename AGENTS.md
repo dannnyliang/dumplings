@@ -41,6 +41,8 @@ npm run types:generate # 從本地 schema 重新產生型別
 
 `npm run db:reset` 一併重啟 Kong 是必要的：`supabase db reset` 會重啟 auth 容器但不重啟 Kong，導致其 upstream 指向已消失的容器，API 回 502。
 
+本地 stack 只跑 db、auth、rest、kong 四個容器。`supabase/config.toml` 關掉了 studio、storage、realtime、edge_runtime、analytics、local_smtp，因為專案沒有用到，而它們的 image 合計超過 6 GB。需要 Studio 看資料時把 `[studio]` 的 `enabled` 改回 `true`，`supabase stop && supabase start` 即可；不要把這個改動 commit。
+
 `npm test` 通過**不代表** app 能開——只有 `verify` 會因為真實功能壞掉而變紅。
 
 **`e2e/*.spec.ts` 的既有斷言受 PreToolUse hook 保護，無法直接修改。** 新增測試不受限制；需要調整既有斷言時先向使用者說明理由。
